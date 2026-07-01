@@ -8,6 +8,10 @@ let dragOffset = { x: 0, y: 0 };
 let resizeState = { startX: 0, startY: 0, width: 0, height: 0 };
 let showGuides = false;
 const GRID_SIZE = 10;
+const STORAGE_KEYS = {
+    watchModel: 'amazfit-editor:last-watch-model',
+    watchShape: 'amazfit-editor:last-watch-shape'
+};
 
 // Configuración real del lienzo (390 x 450)
 let watchConfig = {
@@ -521,6 +525,49 @@ function snapToGrid(value) {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
+function getSavedWatchModel() {
+    try {
+        const savedModel = localStorage.getItem(STORAGE_KEYS.watchModel);
+        return watchModels[savedModel] ? savedModel : null;
+    } catch (err) {
+        return null;
+    }
+}
+
+function saveWatchPreference(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (err) {}
+}
+
+function applyWatchModelConfig(modelKey, options = {}) {
+    const model = watchModels[modelKey] || watchModels.active3premium;
+    const normalizedModelKey = watchModels[modelKey] ? modelKey : 'active3premium';
+
+    watchConfig.model = normalizedModelKey;
+    watchConfig.modelName = model.name;
+    watchConfig.width = model.width;
+    watchConfig.height = model.height;
+    watchConfig.shape = options.keepShape ? (watchConfig.shape || model.shape || 'square') : (model.shape || 'square');
+
+    if (options.persist) {
+        saveWatchPreference(STORAGE_KEYS.watchModel, normalizedModelKey);
+        saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
+    }
+
+    return model;
+}
+
+function restoreSavedWatchConfig() {
+    const savedModel = getSavedWatchModel();
+    if (savedModel) applyWatchModelConfig(savedModel);
+
+    try {
+        const savedShape = localStorage.getItem(STORAGE_KEYS.watchShape);
+        if (savedShape === 'round' || savedShape === 'square') watchConfig.shape = savedShape;
+    } catch (err) {}
+}
+
 function applyWatchShape() {
     const screen = document.getElementById('watch-screen');
     const innerFrame = document.getElementById('watch-inner-frame');
@@ -541,8 +588,8 @@ function updateWatchViewport() {
 
     const screen = document.getElementById('watch-screen');
     if (screen) {
-        screen.style.width = `${Math.round(width * SCALE)}px`;
-        screen.style.height = `${Math.round(height * SCALE)}px`;
+        screen.style.width = `${width * SCALE}px`;
+        screen.style.height = `${height * SCALE}px`;
         screen.style.setProperty('--grid-small', `${GRID_SIZE * SCALE}px`);
         screen.style.setProperty('--grid-large', `${GRID_SIZE * 5 * SCALE}px`);
     }
@@ -559,12 +606,7 @@ function updateWatchViewport() {
 }
 
 function changeWatchModel(modelKey) {
-    const model = watchModels[modelKey] || watchModels.active;
-    watchConfig.model = modelKey;
-    watchConfig.modelName = model.name;
-    watchConfig.width = model.width;
-    watchConfig.height = model.height;
-    watchConfig.shape = model.shape || 'square';
+    const model = applyWatchModelConfig(modelKey, { persist: true });
     updateWatchViewport();
     renderCanvas();
     showNotification(`${model.name}: ${model.width} x ${model.height}px`, 'success');
@@ -572,6 +614,7 @@ function changeWatchModel(modelKey) {
 
 function changeWatchShape(shape) {
     watchConfig.shape = shape === 'round' ? 'round' : 'square';
+    saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
     applyWatchShape();
     showNotification(watchConfig.shape === 'round' ? "Preview redondo activado" : "Preview cuadrado activado", "success");
 }
@@ -625,6 +668,7 @@ const templates = {
 // --- INICIALIZACIÓN ---
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
+    restoreSavedWatchConfig();
     updateWatchViewport();
     applyTemplate('sport'); // Carga deportiva por defecto
     updateBgSettings();
@@ -813,14 +857,8 @@ function renderCanvas() {
         div.style.height = `${el.height * SCALE}px`;
         div.style.opacity = el.opacity;
 
-        // Alineación horizontal según la propiedad
-        if (el.textAlign === 'left') {
-            div.style.justifyContent = 'flex-start';
-        } else if (el.textAlign === 'right') {
-            div.style.justifyContent = 'flex-end';
-        } else {
-            div.style.justifyContent = 'center';
-        }
+        div.style.justifyContent = 'flex-start';
+        div.style.alignItems = 'stretch';
 
         // --- RENDEREAR ELEMENTOS ESPECÍFICOS ---
         if (el.type === 'progress-bar') {
@@ -897,7 +935,6 @@ function renderCanvas() {
         }
         else {
             // Widget estándar de Texto (Hora, Fecha, Pasos, Latidos, Batería, Texto Libre)
-            div.style.justifyContent = 'center';
             div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.fontFamily || 'font-inter')}; font-size: ${(el.fontSize || 14) * SCALE}px; color: ${getElementDisplayColor(el)}; text-align: ${el.textAlign || 'center'};">${getElementDisplayText(el)}</div>`;
         }
 
@@ -926,17 +963,16 @@ function renderCanvas() {
 function startDrag(e, id) {
     if (isResizing) return;
     if (handleStyleCopyPick(e, id)) return;
+    e.preventDefault();
     e.stopPropagation();
     selectElement(id);
     isDragging = true;
 
     const element = elements.find(el => el.id === id);
-    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-    const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+    const point = getCanvasPointerPoint(e);
 
-    // Diferencia
-    dragOffset.x = (clientX / SCALE) - element.x;
-    dragOffset.y = (clientY / SCALE) - element.y;
+    dragOffset.x = (point.x / SCALE) - element.x;
+    dragOffset.y = (point.y / SCALE) - element.y;
 
     document.addEventListener('mousemove', drag);
     document.addEventListener('touchmove', drag, { passive: false });
@@ -949,15 +985,14 @@ function drag(e) {
     if (e.type === 'touchmove') e.preventDefault(); // detiene scroll móvil
 
     const element = elements.find(el => el.id === selectedElementId);
-    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-    const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+    const point = getCanvasPointerPoint(e);
 
-    let newX = snapToGrid(Math.round((clientX / SCALE) - dragOffset.x));
-    let newY = snapToGrid(Math.round((clientY / SCALE) - dragOffset.y));
+    let newX = snapToGrid(Math.round((point.x / SCALE) - dragOffset.x));
+    let newY = snapToGrid(Math.round((point.y / SCALE) - dragOffset.y));
 
-    // Límites para evitar que se pierdan fuera de la pantalla elegida
-    newX = Math.max(-50, Math.min(getCanvasWidth() - 20, newX));
-    newY = Math.max(-30, Math.min(getCanvasHeight() - 10, newY));
+    // Límites nativos del modelo para que preview, PNG y simulador compartan coordenadas.
+    newX = Math.max(0, Math.min(getCanvasWidth() - element.width, newX));
+    newY = Math.max(0, Math.min(getCanvasHeight() - element.height, newY));
 
     element.x = newX;
     element.y = newY;
@@ -1013,6 +1048,18 @@ function getPointerPoint(e) {
     return {
         x: source.clientX,
         y: source.clientY
+    };
+}
+
+function getCanvasPointerPoint(e) {
+    const point = getPointerPoint(e);
+    const screen = document.getElementById('watch-screen');
+    if (!screen) return point;
+
+    const rect = screen.getBoundingClientRect();
+    return {
+        x: point.x - rect.left,
+        y: point.y - rect.top
     };
 }
 
@@ -1733,6 +1780,10 @@ function importJSON(event) {
                 if (!watchConfig.width) watchConfig.width = watchModels[watchConfig.model]?.width || 390;
                 if (!watchConfig.height) watchConfig.height = watchModels[watchConfig.model]?.height || 450;
                 if (!watchConfig.shape) watchConfig.shape = watchModels[watchConfig.model]?.shape || 'square';
+                if (watchModels[watchConfig.model]) {
+                    saveWatchPreference(STORAGE_KEYS.watchModel, watchConfig.model);
+                    saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
+                }
                 elements = parsed.elements.map(normalizeElement);
                 resetStyleCopyMode();
                 updateWatchViewport();
