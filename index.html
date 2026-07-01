@@ -100,6 +100,12 @@
             <div class="flex gap-2 overflow-x-auto widget-toolbar">
                 <button onclick="addElement('time')" class="widget-tool"><i data-lucide="clock"
                         class="w-4 h-4 text-cyan-400"></i><span>Hora</span></button>
+                <button onclick="addElement('hour')" class="widget-tool"><i data-lucide="clock-3"
+                        class="w-4 h-4 text-cyan-300"></i><span>Horas</span></button>
+                <button onclick="addElement('minute')" class="widget-tool"><i data-lucide="clock-9"
+                        class="w-4 h-4 text-sky-300"></i><span>Min</span></button>
+                <button onclick="addElement('second')" class="widget-tool"><i data-lucide="timer"
+                        class="w-4 h-4 text-slate-300"></i><span>Seg</span></button>
                 <button onclick="addElement('date')" class="widget-tool"><i data-lucide="calendar"
                         class="w-4 h-4 text-emerald-400"></i><span>Fecha</span></button>
                 <button onclick="addElement('steps')" class="widget-tool"><i data-lucide="footprints"
@@ -381,6 +387,24 @@
                             <option value="day-month-year-numeric">30/06/2026</option>
                             <option value="iso">2026-06-30</option>
                             <option value="month-day">JUN 30</option>
+                        </select>
+                    </div>
+
+                    <div id="prop-time-format-container" class="space-y-1 hidden">
+                        <label class="text-[10px] text-slate-400 font-semibold block">Formato de hora</label>
+                        <select id="prop-time-format" onchange="updateElementProp('timeFormat', this.value)"
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-300">
+                            <option value="hh-mm-24">10:09</option>
+                            <option value="hh-mm-ss-24">10:09:42</option>
+                            <option value="hh-mm-12">10:09 AM</option>
+                            <option value="hh-mm-ss-12">10:09:42 AM</option>
+                            <option value="h-mm-12">10:09 am</option>
+                            <option value="hhmm-24">1009</option>
+                            <option value="hh-mm-dot">10.09</option>
+                            <option value="hh-mm-space">10 09</option>
+                            <option value="hour-only">10</option>
+                            <option value="minute-only">09</option>
+                            <option value="second-only">42</option>
                         </select>
                     </div>
 

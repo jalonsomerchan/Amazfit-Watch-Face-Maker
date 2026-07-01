@@ -88,6 +88,9 @@ let SCALE = 312 / 390;
 
 const DYNAMIC_METRIC_TYPES = [
     'time',
+    'hour',
+    'minute',
+    'second',
     'date',
     'steps',
     'calories',
@@ -112,7 +115,10 @@ const DYNAMIC_METRIC_TYPES = [
 ];
 
 const metricDefaults = {
-    time: { text: '10:09', color: '#38bdf8', fontSize: 55, fontFamily: 'font-teko' },
+    time: { text: '10:09', color: '#38bdf8', fontSize: 55, fontFamily: 'font-teko', timeFormat: 'hh-mm-24' },
+    hour: { text: '10', color: '#38bdf8', fontSize: 68, fontFamily: 'font-teko' },
+    minute: { text: '09', color: '#38bdf8', fontSize: 68, fontFamily: 'font-teko' },
+    second: { text: '42', color: '#94a3b8', fontSize: 28, fontFamily: 'font-orbitron' },
     date: { text: 'MIE, 30 JUN', color: '#34d399', fontSize: 18, fontFamily: 'font-rajdhani', dateFormat: 'weekday-day-month-short' },
     steps: { text: '5420', color: '#fbbf24', fontSize: 24, fontFamily: 'font-chakra' },
     calories: { text: '420', color: '#fb923c', fontSize: 22, fontFamily: 'font-chakra' },
@@ -182,6 +188,20 @@ const dateFormatLabels = {
     'day-month-year-numeric': '30/06/2026',
     'iso': '2026-06-30',
     'month-day': 'JUN 30'
+};
+
+const timeFormatLabels = {
+    'hh-mm-24': '10:09',
+    'hh-mm-ss-24': '10:09:42',
+    'hh-mm-12': '10:09 AM',
+    'hh-mm-ss-12': '10:09:42 AM',
+    'h-mm-12': '10:09 am',
+    'hhmm-24': '1009',
+    'hh-mm-dot': '10.09',
+    'hh-mm-space': '10 09',
+    'hour-only': '10',
+    'minute-only': '09',
+    'second-only': '42'
 };
 
 function applyMetricDefaults(element, type) {
@@ -267,6 +287,40 @@ function formatDateForDisplay(format, date = new Date()) {
     }
 }
 
+function formatTimeForDisplay(format, date = new Date()) {
+    const hour24 = date.getHours();
+    const hour12 = hour24 % 12 || 12;
+    const minute = pad2(date.getMinutes());
+    const second = pad2(date.getSeconds());
+    const period = hour24 >= 12 ? 'PM' : 'AM';
+
+    switch (format) {
+        case 'hh-mm-ss-24':
+            return `${pad2(hour24)}:${minute}:${second}`;
+        case 'hh-mm-12':
+            return `${pad2(hour12)}:${minute} ${period}`;
+        case 'hh-mm-ss-12':
+            return `${pad2(hour12)}:${minute}:${second} ${period}`;
+        case 'h-mm-12':
+            return `${hour12}:${minute} ${period.toLowerCase()}`;
+        case 'hhmm-24':
+            return `${pad2(hour24)}${minute}`;
+        case 'hh-mm-dot':
+            return `${pad2(hour24)}.${minute}`;
+        case 'hh-mm-space':
+            return `${pad2(hour24)} ${minute}`;
+        case 'hour-only':
+            return pad2(hour24);
+        case 'minute-only':
+            return minute;
+        case 'second-only':
+            return second;
+        case 'hh-mm-24':
+        default:
+            return `${pad2(hour24)}:${minute}`;
+    }
+}
+
 function isDynamicMetricType(type) {
     return DYNAMIC_METRIC_TYPES.includes(type);
 }
@@ -315,6 +369,12 @@ function ensureDateDefaults(element) {
     element.text = dateFormatLabels[element.dateFormat] || dateFormatLabels['weekday-day-month-short'];
 }
 
+function ensureTimeDefaults(element) {
+    if (element.type !== 'time') return;
+    if (!element.timeFormat) element.timeFormat = 'hh-mm-24';
+    element.text = timeFormatLabels[element.timeFormat] || timeFormatLabels['hh-mm-24'];
+}
+
 function ensureMetricAffixDefaults(element) {
     if (!isDynamicMetricType(element.type)) return;
     if (element.metricPrefix === undefined) element.metricPrefix = '';
@@ -339,6 +399,18 @@ function applyMetricAffixes(element, value) {
 }
 
 function getElementDisplayText(element) {
+    if (element.type === 'time') {
+        return applyMetricAffixes(element, formatTimeForDisplay(element.timeFormat || 'hh-mm-24'));
+    }
+    if (element.type === 'hour') {
+        return applyMetricAffixes(element, formatTimeForDisplay('hour-only'));
+    }
+    if (element.type === 'minute') {
+        return applyMetricAffixes(element, formatTimeForDisplay('minute-only'));
+    }
+    if (element.type === 'second') {
+        return applyMetricAffixes(element, formatTimeForDisplay('second-only'));
+    }
     if (element.type === 'bluetooth') {
         const value = element.statusPreview === 'ko'
             ? (element.statusKoText || 'BT KO')
@@ -367,6 +439,7 @@ function normalizeElement(element) {
     if (!supportsOptionalTitle(element.type)) element.titleEnabled = false;
     ensureStatusDefaults(element);
     ensureDateDefaults(element);
+    ensureTimeDefaults(element);
     ensureMetricAffixDefaults(element);
     return element;
 }
@@ -746,6 +819,9 @@ function addElement(type) {
     // Propiedades específicas por tipo de widget
     switch (type) {
         case 'time':
+        case 'hour':
+        case 'minute':
+        case 'second':
         case 'date':
         case 'steps':
         case 'calories':
@@ -1158,6 +1234,7 @@ function selectElement(id) {
     // Control de visibilidad según tipo de Widget
     const textContainer = document.getElementById('prop-text-container');
     const dateFormatContainer = document.getElementById('prop-date-format-container');
+    const timeFormatContainer = document.getElementById('prop-time-format-container');
     const affixContainer = document.getElementById('prop-affix-container');
     const renderImageContainer = document.getElementById('prop-render-image-container');
     const fontContainer = document.getElementById('prop-font-container');
@@ -1171,6 +1248,7 @@ function selectElement(id) {
     // Default visible/hidden
     textContainer.classList.add('hidden');
     dateFormatContainer.classList.add('hidden');
+    timeFormatContainer.classList.add('hidden');
     affixContainer.classList.add('hidden');
     renderImageContainer.classList.add('hidden');
     fontContainer.classList.remove('hidden');
@@ -1208,6 +1286,16 @@ function selectElement(id) {
     if (element.type === 'date') {
         dateFormatContainer.classList.remove('hidden');
         document.getElementById('prop-date-format').value = element.dateFormat || 'weekday-day-month-short';
+        document.getElementById('prop-text').value = getElementDisplayText(element);
+    }
+
+    if (element.type === 'time') {
+        timeFormatContainer.classList.remove('hidden');
+        document.getElementById('prop-time-format').value = element.timeFormat || 'hh-mm-24';
+        document.getElementById('prop-text').value = getElementDisplayText(element);
+    }
+
+    if (['hour', 'minute', 'second'].includes(element.type)) {
         document.getElementById('prop-text').value = getElementDisplayText(element);
     }
 
@@ -1284,6 +1372,11 @@ function updateElementProp(key, value) {
 
     if (key === 'dateFormat') {
         ensureDateDefaults(element);
+        document.getElementById('prop-text').value = getElementDisplayText(element);
+    }
+
+    if (key === 'timeFormat') {
+        ensureTimeDefaults(element);
         document.getElementById('prop-text').value = getElementDisplayText(element);
     }
 
@@ -2060,6 +2153,9 @@ function wrapGeneratedMetricText(el, expression) {
 }
 
 function getGeneratedTextExpression(el) {
+    if (el.type === 'time') {
+        return wrapGeneratedMetricText(el, `getMetricText('time', '${escapeGeneratedText(getElementDisplayText(el))}', { timeFormat: '${escapeGeneratedText(el.timeFormat || 'hh-mm-24')}' })`);
+    }
     if (el.type === 'bluetooth') {
         return wrapGeneratedMetricText(el, `getMetricText('bluetooth', '${escapeGeneratedText(getElementDisplayText(el))}', { okText: '${escapeGeneratedText(el.statusOkText || 'BT OK')}', koText: '${escapeGeneratedText(el.statusKoText || 'BT KO')}' })`);
     }
@@ -2077,9 +2173,19 @@ function getDynamicMetricType(el) {
     return null;
 }
 
+function elementNeedsSecondRefresh(el) {
+    if (!el) return false;
+    if (el.type === 'second') return true;
+    if (el.type === 'time') {
+        return ['hh-mm-ss-24', 'hh-mm-ss-12', 'second-only'].includes(el.timeFormat);
+    }
+    return false;
+}
+
 // --- GENERADOR DE CÓDIGO ZEPP OS SDK COMPATIBLE ---
 function generateZeppCode() {
     const codeBox = document.getElementById('zepp-code-box');
+    const refreshInterval = elements.some(elementNeedsSecondRefresh) ? 1000 : 30000;
 
     let jsCode = `/**\n * Esfera auto-generada para ${watchConfig.modelName || 'Amazfit'}\n * Resolución: ${getCanvasWidth()} x ${getCanvasHeight()} px\n * Zepp OS SDK compatible sin imports ESM\n */\n\n`;
     jsCode += `function createWidget(type, options) {\n`;
@@ -2124,7 +2230,7 @@ function generateZeppCode() {
     jsCode += `}\n\n`;
     jsCode += `function startRefreshTimer() {\n`;
     jsCode += `  if (typeof timer !== 'undefined' && typeof timer.createTimer === 'function') {\n`;
-    jsCode += `    return timer.createTimer(1, 30000, updateDynamicWidgets, {})\n`;
+    jsCode += `    return timer.createTimer(1, ${refreshInterval}, updateDynamicWidgets, {})\n`;
     jsCode += `  }\n`;
     jsCode += `  return null\n`;
     jsCode += `}\n\n`;
@@ -2193,6 +2299,24 @@ function generateZeppCode() {
     jsCode += `  if (format === 'month-day') return monthShort + ' ' + day\n`;
     jsCode += `  return weekdayShort + ', ' + day + ' ' + monthShort\n`;
     jsCode += `}\n\n`;
+    jsCode += `function formatTimeText(format, date) {\n`;
+    jsCode += `  const hour24 = date.getHours()\n`;
+    jsCode += `  const hour12 = hour24 % 12 || 12\n`;
+    jsCode += `  const minute = pad2(date.getMinutes())\n`;
+    jsCode += `  const second = pad2(date.getSeconds())\n`;
+    jsCode += `  const period = hour24 >= 12 ? 'PM' : 'AM'\n`;
+    jsCode += `  if (format === 'hh-mm-ss-24') return pad2(hour24) + ':' + minute + ':' + second\n`;
+    jsCode += `  if (format === 'hh-mm-12') return pad2(hour12) + ':' + minute + ' ' + period\n`;
+    jsCode += `  if (format === 'hh-mm-ss-12') return pad2(hour12) + ':' + minute + ':' + second + ' ' + period\n`;
+    jsCode += `  if (format === 'h-mm-12') return hour12 + ':' + minute + ' ' + period.toLowerCase()\n`;
+    jsCode += `  if (format === 'hhmm-24') return pad2(hour24) + minute\n`;
+    jsCode += `  if (format === 'hh-mm-dot') return pad2(hour24) + '.' + minute\n`;
+    jsCode += `  if (format === 'hh-mm-space') return pad2(hour24) + ' ' + minute\n`;
+    jsCode += `  if (format === 'hour-only') return pad2(hour24)\n`;
+    jsCode += `  if (format === 'minute-only') return minute\n`;
+    jsCode += `  if (format === 'second-only') return second\n`;
+    jsCode += `  return pad2(hour24) + ':' + minute\n`;
+    jsCode += `}\n\n`;
     jsCode += `function formatDistance(value) {\n`;
     jsCode += `  if (value >= 1000) return (Math.round(value / 100) / 10) + ' KM'\n`;
     jsCode += `  return Math.round(value) + ' M'\n`;
@@ -2242,7 +2366,10 @@ function generateZeppCode() {
     jsCode += `function getMetricText(type, fallback, options) {\n`;
     jsCode += `  options = options || {}\n`;
     jsCode += `  const now = new Date()\n`;
-    jsCode += `  if (type === 'time') return pad2(now.getHours()) + ':' + pad2(now.getMinutes())\n`;
+    jsCode += `  if (type === 'time') return formatTimeText(options.timeFormat || 'hh-mm-24', now)\n`;
+    jsCode += `  if (type === 'hour') return formatTimeText('hour-only', now)\n`;
+    jsCode += `  if (type === 'minute') return formatTimeText('minute-only', now)\n`;
+    jsCode += `  if (type === 'second') return formatTimeText('second-only', now)\n`;
     jsCode += `  if (type === 'date') return formatDateText(options.dateFormat || 'weekday-day-month-short', now)\n`;
     jsCode += `  if (type === 'battery') return String(getRawMetric('battery', 0))\n`;
     jsCode += `  if (type === 'steps') return String(getRawMetric('steps', 0))\n`;
@@ -2473,6 +2600,8 @@ function generateZeppCode() {
             if (dynamicType) {
                 if (el.type === 'bluetooth') {
                     jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: 'bluetooth', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { okText: '${escapeGeneratedText(el.statusOkText || 'BT OK')}', koText: '${escapeGeneratedText(el.statusKoText || 'BT KO')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}', okColor: 0x${(el.statusOkColor || '#60a5fa').replace('#', '')}, koColor: 0x${(el.statusKoColor || '#f87171').replace('#', '')} })\n`;
+                } else if (el.type === 'time') {
+                    jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: 'time', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { timeFormat: '${escapeGeneratedText(el.timeFormat || 'hh-mm-24')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}' })\n`;
                 } else if (el.type === 'date') {
                     jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: 'date', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { dateFormat: '${escapeGeneratedText(el.dateFormat || 'weekday-day-month-short')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}' })\n`;
                 } else {
