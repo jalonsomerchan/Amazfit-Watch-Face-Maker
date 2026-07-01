@@ -283,7 +283,7 @@ function getMetricLabel(type) {
 }
 
 function supportsOptionalTitle(type) {
-    return type !== 'label';
+    return !['label', 'arc-progress', 'circle', 'stroke-rect'].includes(type);
 }
 
 function ensureTitleDefaults(element) {
@@ -317,8 +317,16 @@ function ensureMetricAffixDefaults(element) {
     if (element.metricSuffix === undefined) element.metricSuffix = '';
 }
 
+function isProgressWidget(type) {
+    return type === 'progress-bar' || type === 'arc-progress';
+}
+
+function isShapeWidget(type) {
+    return type === 'circle' || type === 'stroke-rect';
+}
+
 function canRenderElementAsImage(element) {
-    return element && !['progress-bar', 'chart', 'image'].includes(element.type);
+    return element && !['progress-bar', 'arc-progress', 'circle', 'stroke-rect', 'chart', 'image'].includes(element.type);
 }
 
 function applyMetricAffixes(element, value) {
@@ -352,6 +360,7 @@ function normalizeElement(element) {
     element.fontFamily = normalizeFontClass(element.fontFamily || 'font-inter');
     element.titleFontFamily = normalizeFontClass(element.titleFontFamily || 'font-rajdhani');
     ensureTitleDefaults(element);
+    if (!supportsOptionalTitle(element.type)) element.titleEnabled = false;
     ensureStatusDefaults(element);
     ensureDateDefaults(element);
     ensureMetricAffixDefaults(element);
@@ -482,7 +491,7 @@ function copyStyle(source, target) {
         });
     }
 
-    if (target.type === 'progress-bar') {
+    if (isProgressWidget(target.type)) {
         ['progressThickness', 'progressBgColor'].forEach((prop) => {
             if (source[prop] !== undefined) target[prop] = source[prop];
         });
@@ -729,6 +738,34 @@ function addElement(type) {
             newElement.progressBgColor = '#1e293b';
             newElement.color = '#10b981';
             break;
+        case 'arc-progress':
+            newElement.x = 135;
+            newElement.y = 135;
+            newElement.width = 170;
+            newElement.height = 170;
+            newElement.progressType = 'steps';
+            newElement.progressValue = 62;
+            newElement.progressThickness = 12;
+            newElement.progressBgColor = '#1e293b';
+            newElement.color = '#22c55e';
+            newElement.fontSize = 18;
+            break;
+        case 'circle':
+            newElement.x = 178;
+            newElement.y = 178;
+            newElement.width = 110;
+            newElement.height = 110;
+            newElement.color = '#0f766e';
+            newElement.opacity = 0.45;
+            break;
+        case 'stroke-rect':
+            newElement.x = 58;
+            newElement.y = 310;
+            newElement.width = 350;
+            newElement.height = 72;
+            newElement.color = '#8b5cf6';
+            newElement.progressThickness = 3;
+            break;
         case 'chart':
             newElement.width = 160;
             newElement.height = 40;
@@ -806,6 +843,36 @@ function renderCanvas() {
                     </div>
                 </div>
             `;
+        }
+        else if (el.type === 'arc-progress') {
+            const val = Math.max(0, Math.min(100, el.progressValue || 0));
+            const thick = Math.max(2, (el.progressThickness || 10) * SCALE);
+            const bg = el.progressBgColor || '#1e293b';
+            const activeColor = el.color || '#22c55e';
+            const size = Math.max(1, Math.min(el.width, el.height) * SCALE);
+            const radius = Math.max(1, (size / 2) - (thick / 2) - 1);
+            const circumference = 2 * Math.PI * radius;
+            const dashOffset = circumference * (1 - (val / 100));
+            div.style.alignItems = 'center';
+            div.style.justifyContent = 'center';
+            div.innerHTML = `
+                <div class="relative flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+                    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="absolute inset-0">
+                        <circle cx="${size / 2}" cy="${size / 2}" r="${radius}" fill="none" stroke="${bg}" stroke-width="${thick}" stroke-linecap="round" />
+                        <circle cx="${size / 2}" cy="${size / 2}" r="${radius}" fill="none" stroke="${activeColor}" stroke-width="${thick}" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}" transform="rotate(-90 ${size / 2} ${size / 2})" />
+                    </svg>
+                    <div class="leading-none text-center font-bold" style="font-family: ${getCssFontFamily(el.fontFamily || 'font-inter')}; font-size: ${(el.fontSize || 18) * SCALE}px; color: ${activeColor};">${val}%</div>
+                </div>
+            `;
+        }
+        else if (el.type === 'circle') {
+            div.style.borderRadius = '9999px';
+            div.style.backgroundColor = el.color || '#0f766e';
+        }
+        else if (el.type === 'stroke-rect') {
+            const thick = Math.max(1, el.progressThickness || 3);
+            div.style.border = `${thick * SCALE}px solid ${el.color || '#8b5cf6'}`;
+            div.style.borderRadius = `${Math.min(18, Math.max(0, Math.min(el.width, el.height) * 0.16)) * SCALE}px`;
         }
         else if (el.type === 'chart') {
             // Gráfico de onda de electrocardiograma (SVG Sparkline)
@@ -959,8 +1026,8 @@ function resizeElement(e) {
     const point = getPointerPoint(e);
     const deltaX = Math.round((point.x - resizeState.startX) / SCALE);
     const deltaY = Math.round((point.y - resizeState.startY) / SCALE);
-    const minWidth = element.type === 'progress-bar' || element.type === 'chart' ? 32 : 18;
-    const minHeight = element.type === 'progress-bar' ? 18 : 16;
+    const minWidth = isProgressWidget(element.type) || element.type === 'chart' || element.type === 'stroke-rect' ? 32 : 18;
+    const minHeight = isProgressWidget(element.type) ? 18 : 16;
 
     element.width = Math.max(minWidth, Math.min(getCanvasWidth() - element.x, snapToGrid(resizeState.width + deltaX)));
     element.height = Math.max(minHeight, Math.min(getCanvasHeight() - element.y, snapToGrid(resizeState.height + deltaY)));
@@ -1106,7 +1173,7 @@ function selectElement(id) {
         document.getElementById('prop-status-preview').value = element.statusPreview || 'ok';
     }
 
-    if (element.type === 'progress-bar') {
+    if (isProgressWidget(element.type)) {
         fontContainer.classList.add('hidden');
         progressContainer.classList.remove('hidden');
 
@@ -1116,11 +1183,29 @@ function selectElement(id) {
         document.getElementById('prop-progress-bg').value = element.progressBgColor || '#1e293b';
     }
 
+    if (isShapeWidget(element.type)) {
+        textContainer.classList.add('hidden');
+        fontContainer.classList.add('hidden');
+        document.getElementById('prop-size').closest('div').parentElement.classList.add('hidden');
+    }
+
+    if (element.type === 'stroke-rect') {
+        progressContainer.classList.remove('hidden');
+        document.getElementById('prop-progress-type').closest('div').classList.add('hidden');
+        document.getElementById('prop-progress-val').closest('div').classList.add('hidden');
+        document.getElementById('prop-progress-thickness').value = element.progressThickness || 3;
+        document.getElementById('prop-progress-bg').closest('div').classList.add('hidden');
+    } else {
+        document.getElementById('prop-progress-type').closest('div').classList.remove('hidden');
+        document.getElementById('prop-progress-val').closest('div').classList.remove('hidden');
+        document.getElementById('prop-progress-bg').closest('div').classList.remove('hidden');
+    }
+
     if (element.type === 'chart') {
         textContainer.classList.add('hidden');
         fontContainer.classList.add('hidden');
         document.getElementById('prop-size').closest('div').parentElement.classList.add('hidden'); // Ocultar tamaño
-    } else {
+    } else if (!isShapeWidget(element.type)) {
         document.getElementById('prop-size').closest('div').parentElement.classList.remove('hidden');
     }
 
@@ -1581,7 +1666,7 @@ async function addZeppFontAssets(root) {
         normalizeElement(el);
         const fullImageFallback = canRenderElementAsImage(el) && el.renderAsImage;
         if (el.titleEnabled && !fullImageFallback) usedFontFiles.add(getZeppFontFile(el.titleFontFamily || 'font-rajdhani'));
-        if (el.type === 'progress-bar') usedFontFiles.add(getZeppFontFile(el.fontFamily || 'font-inter'));
+        if (isProgressWidget(el.type)) usedFontFiles.add(getZeppFontFile(el.fontFamily || 'font-inter'));
         if (canRenderElementAsImage(el) && !fullImageFallback) {
             usedFontFiles.add(getZeppFontFile(el.fontFamily || 'font-inter'));
         }
@@ -1774,6 +1859,46 @@ async function exportAsImage() {
                 ctx.font = "bold 10px sans-serif";
                 ctx.fillText(`${el.progressType.toUpperCase()}: ${val}%`, el.x, contentY + 8);
 
+            } else if (el.type === 'arc-progress') {
+                const val = Math.max(0, Math.min(100, el.progressValue || 0));
+                const thick = el.progressThickness || 10;
+                const centerX = el.x + (el.width / 2);
+                const centerY = contentY + ((el.height - titleOffset) / 2);
+                const radius = Math.max(1, (Math.min(el.width, el.height - titleOffset) / 2) - (thick / 2) - 1);
+                const startAngle = -Math.PI / 2;
+                const endAngle = startAngle + ((Math.PI * 2) * (val / 100));
+
+                ctx.lineWidth = thick;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = el.progressBgColor || '#1e293b';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.strokeStyle = el.color || '#22c55e';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.stroke();
+
+                ctx.fillStyle = el.color || '#22c55e';
+                ctx.font = getCanvasFont(el.fontFamily || 'font-inter', el.fontSize || 18, 'bold');
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${val}%`, centerX, centerY);
+
+            } else if (el.type === 'circle') {
+                ctx.fillStyle = el.color || '#0f766e';
+                ctx.beginPath();
+                ctx.arc(el.x + (el.width / 2), contentY + ((el.height - titleOffset) / 2), Math.max(1, Math.min(el.width, el.height - titleOffset) / 2), 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (el.type === 'stroke-rect') {
+                ctx.strokeStyle = el.color || '#8b5cf6';
+                ctx.lineWidth = el.progressThickness || 3;
+                ctx.beginPath();
+                ctx.roundRect(el.x, contentY, el.width, Math.max(1, el.height - titleOffset), Math.min(18, Math.max(0, Math.min(el.width, el.height - titleOffset) * 0.16)));
+                ctx.stroke();
+
             } else if (el.type === 'chart') {
                 // Dibujar onda ECG en la imagen
                 ctx.strokeStyle = el.color || '#ef4444';
@@ -1916,6 +2041,7 @@ function generateZeppCode() {
     jsCode += `const metricSensors = {}\n`;
     jsCode += `const dynamicTexts = []\n`;
     jsCode += `const dynamicBars = []\n\n`;
+    jsCode += `const dynamicArcs = []\n\n`;
     jsCode += `const sensorAliases = {\n`;
     jsCode += `  battery: ['BATTERY'],\n`;
     jsCode += `  steps: ['STEP'],\n`;
@@ -2110,6 +2236,21 @@ function generateZeppCode() {
     jsCode += `    })\n`;
     jsCode += `    if (item.label) item.label.setProperty(prop.TEXT, getMetricText(item.type, item.fallback))\n`;
     jsCode += `  }\n`;
+    jsCode += `  for (let i = 0; i < dynamicArcs.length; i += 1) {\n`;
+    jsCode += `    const item = dynamicArcs[i]\n`;
+    jsCode += `    const percent = getMetricPercent(item.type)\n`;
+    jsCode += `    item.node.setProperty(prop.MORE, {\n`;
+    jsCode += `      center_x: item.centerX,\n`;
+    jsCode += `      center_y: item.centerY,\n`;
+    jsCode += `      radius: item.radius,\n`;
+    jsCode += `      start_angle: item.startAngle,\n`;
+    jsCode += `      end_angle: item.endAngle,\n`;
+    jsCode += `      line_width: item.lineWidth,\n`;
+    jsCode += `      color: item.color,\n`;
+    jsCode += `      level: percent\n`;
+    jsCode += `    })\n`;
+    jsCode += `    if (item.label) item.label.setProperty(prop.TEXT, String(percent) + '%')\n`;
+    jsCode += `  }\n`;
     jsCode += `}\n\n`;
     jsCode += `WatchFace({\n  onInit() {\n    console.log('Esfera Cargada con Éxito')\n  },\n\n  build() {\n`;
     jsCode += `    const sensorTypes = Object.keys(sensorAliases)\n`;
@@ -2189,6 +2330,60 @@ function generateZeppCode() {
             jsCode += `    })\n`;
             jsCode += `    dynamicBars.push({ node: ${fillName}, label: ${labelName}, type: '${progressType}', fallback: '${fallbackText}', x: ${el.x}, y: ${contentY + 12}, width: ${el.width}, height: ${el.progressThickness}, color: 0x${el.color.replace('#', '')} })\n\n`;
         }
+        else if (el.type === 'arc-progress') {
+            const progressType = el.progressType || 'steps';
+            const centerX = Math.round(el.x + (el.width / 2));
+            const centerY = Math.round(contentY + (contentHeight / 2));
+            const lineWidth = el.progressThickness || 10;
+            const radius = Math.max(1, Math.round((Math.min(el.width, contentHeight) / 2) - (lineWidth / 2) - 1));
+            const startAngle = -90;
+            const endAngle = 270;
+            const arcName = `arcProgress${idx}`;
+            const labelName = `arcLabel${idx}`;
+            jsCode += `    // Progreso circular vinculado a ${progressType}\n`;
+            jsCode += `    createWidget(widget.ARC, {\n`;
+            jsCode += `      x: ${el.x}, y: ${contentY}, w: ${el.width}, h: ${contentHeight},\n`;
+            jsCode += `      start_angle: ${startAngle},\n`;
+            jsCode += `      end_angle: ${endAngle},\n`;
+            jsCode += `      color: 0x${(el.progressBgColor || '#1e293b').replace('#', '')},\n`;
+            jsCode += `      line_width: ${lineWidth}\n`;
+            jsCode += `    })\n`;
+            jsCode += `    const ${arcName} = createWidget(widget.ARC_PROGRESS, {\n`;
+            jsCode += `      center_x: ${centerX}, center_y: ${centerY}, radius: ${radius},\n`;
+            jsCode += `      start_angle: ${startAngle},\n`;
+            jsCode += `      end_angle: ${endAngle},\n`;
+            jsCode += `      color: 0x${el.color.replace('#', '')},\n`;
+            jsCode += `      line_width: ${lineWidth},\n`;
+            jsCode += `      level: ${Math.max(0, Math.min(100, el.progressValue || 0))}\n`;
+            jsCode += `    })\n`;
+            jsCode += `    const ${labelName} = createWidget(widget.TEXT, {\n`;
+            jsCode += `      x: ${el.x}, y: ${Math.round(centerY - ((el.fontSize || 18) / 2))}, w: ${el.width}, h: ${getZeppTextBoxHeight(el.fontFamily || 'font-inter', el.fontSize || 18, el.fontSize || 18)},\n`;
+            jsCode += `      text: '${Math.max(0, Math.min(100, el.progressValue || 0))}%',\n`;
+            jsCode += `      text_size: ${getZeppTextSize(el.fontFamily || 'font-inter', el.fontSize || 18)},\n`;
+            jsCode += `      font: '${contentFontPath}',\n`;
+            jsCode += `      color: 0x${el.color.replace('#', '')},\n`;
+            jsCode += `      align_h: align.CENTER_H\n`;
+            jsCode += `    })\n`;
+            jsCode += `    dynamicArcs.push({ node: ${arcName}, label: ${labelName}, type: '${progressType}', centerX: ${centerX}, centerY: ${centerY}, radius: ${radius}, startAngle: ${startAngle}, endAngle: ${endAngle}, lineWidth: ${lineWidth}, color: 0x${el.color.replace('#', '')} })\n\n`;
+        }
+        else if (el.type === 'circle') {
+            const radius = Math.max(1, Math.round(Math.min(el.width, contentHeight) / 2));
+            jsCode += `    createWidget(widget.CIRCLE, {\n`;
+            jsCode += `      center_x: ${Math.round(el.x + (el.width / 2))},\n`;
+            jsCode += `      center_y: ${Math.round(contentY + (contentHeight / 2))},\n`;
+            jsCode += `      radius: ${radius},\n`;
+            jsCode += `      color: 0x${el.color.replace('#', '')},\n`;
+            jsCode += `      alpha: ${Math.max(0, Math.min(255, Math.round((el.opacity === undefined ? 1 : el.opacity) * 255)))}\n`;
+            jsCode += `    })\n\n`;
+        }
+        else if (el.type === 'stroke-rect') {
+            jsCode += `    createWidget(widget.STROKE_RECT, {\n`;
+            jsCode += `      x: ${el.x}, y: ${contentY}, w: ${el.width}, h: ${contentHeight},\n`;
+            jsCode += `      radius: ${Math.min(18, Math.max(0, Math.round(Math.min(el.width, contentHeight) * 0.16)))},\n`;
+            jsCode += `      line_width: ${el.progressThickness || 3},\n`;
+            jsCode += `      color: 0x${el.color.replace('#', '')}\n`;
+            jsCode += `    })\n\n`;
+        }
         else if (el.type === 'chart') {
             // Generación simulada de widget gráfico avanzado
             jsCode += `    // Gráfico de Onda cardíaca (Líneas poligonales)\n`;
@@ -2243,6 +2438,7 @@ function generateZeppCode() {
     jsCode += `    stopRefreshTimer(refreshTimer)\n`;
     jsCode += `    dynamicTexts.length = 0\n`;
     jsCode += `    dynamicBars.length = 0\n`;
+    jsCode += `    dynamicArcs.length = 0\n`;
     jsCode += `    console.log('Esfera Destruida')\n`;
     jsCode += `  }\n})`;
 
