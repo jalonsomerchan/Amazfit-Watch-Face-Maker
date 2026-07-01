@@ -1382,9 +1382,10 @@ async function addZeppFontAssets(root) {
 
     elements.forEach((el) => {
         normalizeElement(el);
-        if (el.titleEnabled) usedFontFiles.add(getZeppFontFile(el.titleFontFamily || 'font-rajdhani'));
+        const fullImageFallback = canRenderElementAsImage(el) && el.renderAsImage;
+        if (el.titleEnabled && !fullImageFallback) usedFontFiles.add(getZeppFontFile(el.titleFontFamily || 'font-rajdhani'));
         if (el.type === 'progress-bar') usedFontFiles.add(getZeppFontFile(el.fontFamily || 'font-inter'));
-        if (canRenderElementAsImage(el) && !el.renderAsImage) {
+        if (canRenderElementAsImage(el) && !fullImageFallback) {
             usedFontFiles.add(getZeppFontFile(el.fontFamily || 'font-inter'));
         }
     });
@@ -1926,7 +1927,9 @@ function generateZeppCode() {
         const contentHeight = Math.max(1, el.height - titleOffset);
         const contentFontPath = getZeppFontPath(el.fontFamily || 'font-inter');
 
-        if (el.titleEnabled) {
+        const fullImageFallback = canRenderElementAsImage(el) && el.renderAsImage;
+
+        if (el.titleEnabled && !fullImageFallback) {
             const titleFontPath = getZeppFontPath(el.titleFontFamily || 'font-rajdhani');
             jsCode += `    createWidget(widget.TEXT, {\n`;
             jsCode += `      x: ${el.x}, y: ${el.y}, w: ${el.width}, h: ${Math.max(10, el.titleFontSize || 10)},\n`;
