@@ -3,6 +3,7 @@ let elements = [];
 let selectedElementId = null;
 let isDragging = false;
 let isResizing = false;
+let styleCopyTargetId = null;
 let dragOffset = { x: 0, y: 0 };
 let resizeState = { startX: 0, startY: 0, width: 0, height: 0 };
 let showGuides = false;
@@ -109,21 +110,21 @@ const DYNAMIC_METRIC_TYPES = [
 const metricDefaults = {
     time: { text: '10:09', color: '#38bdf8', fontSize: 55, fontFamily: 'font-teko' },
     date: { text: 'MIE, 30 JUN', color: '#34d399', fontSize: 18, fontFamily: 'font-rajdhani', dateFormat: 'weekday-day-month-short' },
-    steps: { text: '👣 5,420', color: '#fbbf24', fontSize: 24, fontFamily: 'font-chakra' },
-    calories: { text: '🔥 420 KCAL', color: '#fb923c', fontSize: 22, fontFamily: 'font-chakra' },
-    distance: { text: '📍 4.8 KM', color: '#a3e635', fontSize: 22, fontFamily: 'font-chakra' },
-    heart: { text: '❤️ 75 BPM', color: '#f43f5e', fontSize: 24, fontFamily: 'font-chakra' },
-    battery: { text: '🔋 80%', color: '#2dd4bf', fontSize: 24, fontFamily: 'font-orbitron' },
-    sleep: { text: '🌙 7H 35M', color: '#a5b4fc', fontSize: 22, fontFamily: 'font-rajdhani' },
-    stress: { text: '⚡ 34', color: '#f87171', fontSize: 22, fontFamily: 'font-chakra' },
-    spo2: { text: '💧 98%', color: '#38bdf8', fontSize: 22, fontFamily: 'font-chakra' },
-    pai: { text: 'PAI 86', color: '#c084fc', fontSize: 22, fontFamily: 'font-orbitron' },
-    weather: { text: '☀️ SOLEADO', color: '#fde047', fontSize: 18, fontFamily: 'font-rajdhani' },
-    temperature: { text: '24°C', color: '#fca5a5', fontSize: 26, fontFamily: 'font-orbitron' },
-    humidity: { text: '💧 58%', color: '#93c5fd', fontSize: 22, fontFamily: 'font-chakra' },
-    uv: { text: 'UV 6', color: '#facc15', fontSize: 22, fontFamily: 'font-chakra' },
-    altitude: { text: '650 M', color: '#d6d3d1', fontSize: 22, fontFamily: 'font-rajdhani' },
-    pressure: { text: '1018 HPA', color: '#67e8f9', fontSize: 20, fontFamily: 'font-rajdhani' },
+    steps: { text: '5420', color: '#fbbf24', fontSize: 24, fontFamily: 'font-chakra' },
+    calories: { text: '420', color: '#fb923c', fontSize: 22, fontFamily: 'font-chakra' },
+    distance: { text: '4.8', color: '#a3e635', fontSize: 22, fontFamily: 'font-chakra' },
+    heart: { text: '75', color: '#f43f5e', fontSize: 24, fontFamily: 'font-chakra' },
+    battery: { text: '80', color: '#2dd4bf', fontSize: 24, fontFamily: 'font-orbitron' },
+    sleep: { text: '7:35', color: '#a5b4fc', fontSize: 22, fontFamily: 'font-rajdhani' },
+    stress: { text: '34', color: '#f87171', fontSize: 22, fontFamily: 'font-chakra' },
+    spo2: { text: '98', color: '#38bdf8', fontSize: 22, fontFamily: 'font-chakra' },
+    pai: { text: '86', color: '#c084fc', fontSize: 22, fontFamily: 'font-orbitron' },
+    weather: { text: 'SOLEADO', color: '#fde047', fontSize: 18, fontFamily: 'font-rajdhani' },
+    temperature: { text: '24', color: '#fca5a5', fontSize: 26, fontFamily: 'font-orbitron' },
+    humidity: { text: '58', color: '#93c5fd', fontSize: 22, fontFamily: 'font-chakra' },
+    uv: { text: '6', color: '#facc15', fontSize: 22, fontFamily: 'font-chakra' },
+    altitude: { text: '650', color: '#d6d3d1', fontSize: 22, fontFamily: 'font-rajdhani' },
+    pressure: { text: '1018', color: '#67e8f9', fontSize: 20, fontFamily: 'font-rajdhani' },
     sunrise: { text: '06:42', color: '#fdba74', fontSize: 20, fontFamily: 'font-orbitron' },
     sunset: { text: '21:38', color: '#f9a8d4', fontSize: 20, fontFamily: 'font-orbitron' },
     alarm: { text: '07:30', color: '#d8b4fe', fontSize: 20, fontFamily: 'font-orbitron' },
@@ -151,6 +152,17 @@ const zeppFontFiles = {
     'font-mono-tech': 'share-tech-mono-400.ttf',
     'font-montserrat': 'montserrat-700.ttf',
     'font-inter': 'inter-400.ttf'
+};
+
+const zeppTextSizeScale = {
+    'font-bebas': 0.84,
+    'font-teko': 0.84,
+    'font-orbitron': 0.82,
+    'font-chakra': 0.82,
+    'font-rajdhani': 0.82,
+    'font-mono-tech': 0.86,
+    'font-montserrat': 0.82,
+    'font-inter': 0.84
 };
 
 const unsupportedFontFallbacks = {
@@ -195,6 +207,17 @@ function getZeppFontPath(fontClass) {
 
 function getCanvasFont(fontClass, size, weight = '') {
     return `${weight ? `${weight} ` : ''}${size}px ${getCssFontFamily(fontClass)}`;
+}
+
+function getZeppTextSize(fontClass, size) {
+    const normalizedFont = normalizeFontClass(fontClass || 'font-inter');
+    const scale = zeppTextSizeScale[normalizedFont] || 0.84;
+    return Math.max(1, Math.round((size || 14) * scale));
+}
+
+function getZeppTextBoxHeight(fontClass, size, preferredHeight) {
+    const textSize = getZeppTextSize(fontClass, size);
+    return Math.max(1, Math.round(Math.max(preferredHeight || 0, textSize * 1.45)));
 }
 
 function pad2(value) {
@@ -335,6 +358,147 @@ function normalizeElement(element) {
     return element;
 }
 
+function updateCopyStyleControls(currentId) {
+    const button = document.getElementById('prop-copy-style-button');
+    if (!button) return;
+
+    const hasSource = elements.some(element => element.id !== currentId);
+    const isPicking = styleCopyTargetId === currentId;
+    button.disabled = !hasSource;
+    button.className = isPicking
+        ? 'w-full h-8 inline-flex items-center justify-center gap-2 rounded border border-amber-700/80 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60 transition text-xs font-semibold'
+        : 'w-full h-8 inline-flex items-center justify-center gap-2 rounded border border-cyan-900/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-cyan-100 transition text-xs font-semibold';
+    if (!hasSource) {
+        button.classList.add('opacity-40', 'cursor-not-allowed');
+    }
+
+    const icon = isPicking ? 'mouse-pointer-click' : 'copy';
+    const text = isPicking ? 'Elige origen' : 'Copiar estilo';
+    button.innerHTML = `<i data-lucide="${icon}" class="w-3.5 h-3.5"></i>${text}`;
+    lucide.createIcons();
+}
+
+function startStyleCopyMode() {
+    if (!selectedElementId) return;
+    if (styleCopyTargetId === selectedElementId) {
+        cancelStyleCopyMode();
+        return;
+    }
+    if (!elements.some(element => element.id !== selectedElementId)) {
+        showNotification("Añade otro elemento para copiar su estilo", "error");
+        return;
+    }
+
+    styleCopyTargetId = selectedElementId;
+    renderCanvas();
+    selectElement(selectedElementId);
+    showNotification("Selecciona en el reloj el elemento del que quieres copiar el estilo");
+}
+
+function cancelStyleCopyMode() {
+    if (!styleCopyTargetId) return;
+    styleCopyTargetId = null;
+    renderCanvas();
+    if (selectedElementId) selectElement(selectedElementId);
+}
+
+function pickStyleSource(sourceId) {
+    const targetId = styleCopyTargetId;
+    if (!targetId) return;
+
+    if (sourceId === targetId) {
+        showNotification("Elige otro elemento como origen del estilo", "error");
+        return;
+    }
+
+    const source = elements.find(el => el.id === sourceId);
+    const target = elements.find(el => el.id === targetId);
+    if (!source || !target) {
+        cancelStyleCopyMode();
+        return;
+    }
+
+    normalizeElement(source);
+    copyStyle(source, target);
+    normalizeElement(target);
+    styleCopyTargetId = null;
+    selectedElementId = target.id;
+    renderCanvas();
+    selectElement(target.id);
+    showNotification("Estilo copiado al elemento seleccionado", "success");
+}
+
+function handleStyleCopyPick(event, sourceId) {
+    if (!styleCopyTargetId) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    pickStyleSource(sourceId);
+    return true;
+}
+
+function clearStyleCopyModeIfNeeded() {
+    if (!styleCopyTargetId) return;
+    if (!elements.some(element => element.id === styleCopyTargetId)) {
+        styleCopyTargetId = null;
+    }
+}
+
+function resetStyleCopyMode() {
+    styleCopyTargetId = null;
+}
+
+function disableCopyStyleButton() {
+    const button = document.getElementById('prop-copy-style-button');
+    if (!button) return;
+    button.disabled = true;
+    button.className = 'w-full h-8 inline-flex items-center justify-center gap-2 rounded border border-cyan-900/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-cyan-100 transition text-xs font-semibold opacity-40 cursor-not-allowed';
+    button.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i>Copiar estilo`;
+    lucide.createIcons();
+}
+
+function copyStyle(source, target) {
+    const commonStyleProps = [
+        'color',
+        'fontSize',
+        'fontFamily',
+        'opacity',
+        'textAlign',
+        'renderAsImage'
+    ];
+
+    commonStyleProps.forEach((prop) => {
+        if (source[prop] !== undefined) target[prop] = source[prop];
+    });
+
+    if (supportsOptionalTitle(target.type)) {
+        [
+            'titleEnabled',
+            'titleText',
+            'titleFontFamily',
+            'titleFontSize',
+            'titleColor'
+        ].forEach((prop) => {
+            if (source[prop] !== undefined) target[prop] = source[prop];
+        });
+    }
+
+    if (target.type === 'progress-bar') {
+        ['progressThickness', 'progressBgColor'].forEach((prop) => {
+            if (source[prop] !== undefined) target[prop] = source[prop];
+        });
+    }
+
+    if (target.type === 'bluetooth') {
+        if (source.statusOkColor || source.statusKoColor) {
+            target.statusOkColor = source.statusOkColor || target.statusOkColor;
+            target.statusKoColor = source.statusKoColor || target.statusKoColor;
+        } else if (source.color) {
+            target.statusOkColor = source.color;
+            target.statusKoColor = source.color;
+        }
+    }
+}
+
 function getCanvasWidth() {
     return watchConfig.width || 390;
 }
@@ -376,9 +540,6 @@ function updateWatchViewport() {
 
     const label = document.getElementById('watch-resolution-label');
     if (label) label.innerText = `${width} x ${height} px`;
-
-    const summary = document.getElementById('watch-resolution-summary');
-    if (summary) summary.innerText = `${watchConfig.modelName || 'Reloj'} · ${width} x ${height}`;
 
     const modelSelect = document.getElementById('watch-model');
     if (modelSelect && watchConfig.model) modelSelect.value = watchConfig.model;
@@ -437,7 +598,7 @@ const templates = {
         { id: 't5', type: 'chart', x: 120, y: 280, width: 150, height: 40, color: '#ef4444', opacity: 1 },
 
         // Datos de Ritmo Cardíaco en texto debajo
-        { id: 't6', type: 'heart', x: 20, y: 330, width: 350, height: 25, color: '#ef4444', fontSize: 18, fontFamily: 'font-chakra', opacity: 0.9, text: '❤️ 124 PPM', textAlign: 'center' }
+        { id: 't6', type: 'heart', x: 20, y: 330, width: 350, height: 25, color: '#ef4444', fontSize: 18, fontFamily: 'font-chakra', opacity: 0.9, text: '124', textAlign: 'center' }
     ],
     minimal: [
         { id: 'm1', type: 'time', x: 20, y: 120, width: 350, height: 110, color: '#ffffff', fontSize: 95, fontFamily: 'font-montserrat', opacity: 1, text: '12:00', textAlign: 'center' },
@@ -448,7 +609,7 @@ const templates = {
         { id: 'c1', type: 'image', x: 175, y: 45, width: 40, height: 40, text: '⭐', color: '#fbbf24', opacity: 1, imageSrc: null },
         { id: 'c2', type: 'time', x: 20, y: 110, width: 350, height: 80, color: '#e2e8f0', fontSize: 62, fontFamily: 'font-montserrat', opacity: 1, text: '10:08', textAlign: 'center' },
         { id: 'c3', type: 'date', x: 20, y: 195, width: 350, height: 25, color: '#94a3b8', fontSize: 14, fontFamily: 'font-montserrat', opacity: 0.9, text: 'Miércoles, 30 de Junio', textAlign: 'center' },
-        { id: 'c4', type: 'steps', x: 20, y: 275, width: 350, height: 30, color: '#fbbf24', fontSize: 16, fontFamily: 'font-montserrat', opacity: 0.9, text: 'Pasos hoy: 7,450', textAlign: 'center' }
+        { id: 'c4', type: 'steps', x: 20, y: 275, width: 350, height: 30, color: '#fbbf24', fontSize: 16, fontFamily: 'font-montserrat', opacity: 0.9, text: '7450', textAlign: 'center' }
     ]
 };
 
@@ -466,7 +627,25 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeInstallModal();
+    const target = event.target;
+    const isTypingField = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+    );
+
+    if (event.key === 'Escape') {
+        cancelStyleCopyMode();
+        closeInstallModal();
+        return;
+    }
+
+    if (!isTypingField && (event.key === 'Delete' || event.key === 'Del' || event.key === 'Supr')) {
+        if (!selectedElementId) return;
+        event.preventDefault();
+        deleteSelectedElement();
+    }
 });
 
 // --- TOAST NOTIFICATIONS ---
@@ -578,7 +757,17 @@ function renderCanvas() {
         normalizeElement(el);
         const div = document.createElement('div');
         div.id = el.id;
-        div.className = `absolute cursor-move select-none flex flex-col transition-all ${selectedElementId === el.id ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-black z-30' : 'hover:ring-1 hover:ring-slate-700'}`;
+        const isSelected = selectedElementId === el.id;
+        const isStyleTarget = styleCopyTargetId === el.id;
+        const isStyleSourceCandidate = styleCopyTargetId && !isStyleTarget;
+        const stateClass = isStyleTarget
+            ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-black z-30'
+            : isStyleSourceCandidate
+                ? 'ring-1 ring-emerald-400/80 hover:ring-2 hover:ring-emerald-300 cursor-copy z-20'
+                : isSelected
+                    ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-black z-30'
+                    : 'hover:ring-1 hover:ring-slate-700';
+        div.className = `absolute ${styleCopyTargetId ? 'cursor-copy' : 'cursor-move'} select-none flex flex-col transition-all ${stateClass}`;
 
         // Conversión escala del plano nativo al simulador visual
         div.style.left = `${el.x * SCALE}px`;
@@ -645,7 +834,7 @@ function renderCanvas() {
             div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.fontFamily || 'font-inter')}; font-size: ${(el.fontSize || 14) * SCALE}px; color: ${getElementDisplayColor(el)}; text-align: ${el.textAlign || 'center'};">${getElementDisplayText(el)}</div>`;
         }
 
-        if (selectedElementId === el.id) {
+        if (selectedElementId === el.id && !styleCopyTargetId) {
             const resizeHandle = document.createElement('button');
             resizeHandle.type = 'button';
             resizeHandle.className = 'element-resize-handle';
@@ -658,7 +847,7 @@ function renderCanvas() {
 
         // Eventos de arrastre
         div.addEventListener('mousedown', (e) => startDrag(e, el.id));
-        div.addEventListener('touchstart', (e) => startDrag(e, el.id), { passive: true });
+        div.addEventListener('touchstart', (e) => startDrag(e, el.id), { passive: false });
 
         container.appendChild(div);
     });
@@ -669,6 +858,7 @@ function renderCanvas() {
 // --- ARRASTRE DE ELEMENTOS (DRAG & DROP) ---
 function startDrag(e, id) {
     if (isResizing) return;
+    if (handleStyleCopyPick(e, id)) return;
     e.stopPropagation();
     selectElement(id);
     isDragging = true;
@@ -726,6 +916,7 @@ function stopDrag() {
 }
 
 function startResize(e, id) {
+    if (handleStyleCopyPick(e, id)) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -828,6 +1019,7 @@ function selectElement(id) {
     if (!element) {
         document.getElementById('no-selection-msg').classList.remove('hidden');
         document.getElementById('inspector-form').classList.add('hidden');
+        disableCopyStyleButton();
         return;
     }
 
@@ -835,6 +1027,8 @@ function selectElement(id) {
     document.getElementById('inspector-form').classList.remove('hidden');
 
     // Cargar datos en el inspector
+    clearStyleCopyModeIfNeeded();
+    updateCopyStyleControls(element.id);
     document.getElementById('elem-badge').innerText = `Widget: ${element.type}`;
     document.getElementById('prop-x').value = element.x;
     document.getElementById('prop-y').value = element.y;
@@ -1010,6 +1204,7 @@ function deleteSelectedElement() {
     if (!selectedElementId) return;
     elements = elements.filter(el => el.id !== selectedElementId);
     selectedElementId = null;
+    resetStyleCopyMode();
     renderCanvas();
     selectElement(null);
     showNotification("Widget eliminado", "info");
@@ -1018,6 +1213,7 @@ function deleteSelectedElement() {
 function clearCanvas() {
     elements = [];
     selectedElementId = null;
+    resetStyleCopyMode();
     renderCanvas();
     selectElement(null);
     showNotification("Esfera completamente vaciada", "info");
@@ -1139,6 +1335,7 @@ function applyTemplate(key) {
     if (templates[key]) {
         elements = JSON.parse(JSON.stringify(templates[key])).map(normalizeElement);
         selectedElementId = null;
+        resetStyleCopyMode();
 
         if (key === 'sport') {
             changeBgType('gradient');
@@ -1452,6 +1649,7 @@ function importJSON(event) {
                 if (!watchConfig.height) watchConfig.height = watchModels[watchConfig.model]?.height || 450;
                 if (!watchConfig.shape) watchConfig.shape = watchModels[watchConfig.model]?.shape || 'square';
                 elements = parsed.elements.map(normalizeElement);
+                resetStyleCopyMode();
                 updateWatchViewport();
 
                 changeBgType(watchConfig.bgType);
@@ -1648,8 +1846,21 @@ async function exportAsImage() {
 // --- COPIADO AL PORTAPAPELES ---
 function copyCode() {
     const codeBox = document.getElementById('zepp-code-box');
+    const code = codeBox.innerText;
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(code)
+            .then(() => showNotification("Código copiado al portapapeles", "success"))
+            .catch(() => fallbackCopyCode(code));
+        return;
+    }
+
+    fallbackCopyCode(code);
+}
+
+function fallbackCopyCode(code) {
     const textArea = document.createElement("textarea");
-    textArea.value = codeBox.innerText;
+    textArea.value = code;
     document.body.appendChild(textArea);
     textArea.select();
     try {
@@ -1809,9 +2020,17 @@ function generateZeppCode() {
     jsCode += `  if (value >= 1000) return (Math.round(value / 100) / 10) + ' KM'\n`;
     jsCode += `  return Math.round(value) + ' M'\n`;
     jsCode += `}\n\n`;
+    jsCode += `function formatDistanceValue(value) {\n`;
+    jsCode += `  if (value >= 1000) return String(Math.round(value / 100) / 10)\n`;
+    jsCode += `  return String(Math.round(value))\n`;
+    jsCode += `}\n\n`;
     jsCode += `function formatDuration(minutes) {\n`;
     jsCode += `  const total = Math.max(0, Math.round(minutes))\n`;
     jsCode += `  return Math.floor(total / 60) + 'H ' + pad2(total % 60) + 'M'\n`;
+    jsCode += `}\n\n`;
+    jsCode += `function formatDurationValue(minutes) {\n`;
+    jsCode += `  const total = Math.max(0, Math.round(minutes))\n`;
+    jsCode += `  return Math.floor(total / 60) + ':' + pad2(total % 60)\n`;
     jsCode += `}\n\n`;
     jsCode += `function getRawMetric(type, fallback) {\n`;
     jsCode += `  const source = metricSensors[type]\n`;
@@ -1848,21 +2067,21 @@ function generateZeppCode() {
     jsCode += `  const now = new Date()\n`;
     jsCode += `  if (type === 'time') return pad2(now.getHours()) + ':' + pad2(now.getMinutes())\n`;
     jsCode += `  if (type === 'date') return formatDateText(options.dateFormat || 'weekday-day-month-short', now)\n`;
-    jsCode += `  if (type === 'battery') return getRawMetric('battery', 0) + '%'\n`;
+    jsCode += `  if (type === 'battery') return String(getRawMetric('battery', 0))\n`;
     jsCode += `  if (type === 'steps') return String(getRawMetric('steps', 0))\n`;
-    jsCode += `  if (type === 'heart') return getRawMetric('heart', 0) + ' PPM'\n`;
-    jsCode += `  if (type === 'calories') return getRawMetric('calories', 0) + ' KCAL'\n`;
-    jsCode += `  if (type === 'distance') return formatDistance(getRawMetric('distance', 0))\n`;
-    jsCode += `  if (type === 'sleep') return formatDuration(getRawMetric('sleep', 0))\n`;
-    jsCode += `  if (type === 'stress') return 'EST ' + getRawMetric('stress', 0)\n`;
-    jsCode += `  if (type === 'spo2') return getRawMetric('spo2', 0) + '%'\n`;
-    jsCode += `  if (type === 'pai') return 'PAI ' + getRawMetric('pai', 0)\n`;
+    jsCode += `  if (type === 'heart') return String(getRawMetric('heart', 0))\n`;
+    jsCode += `  if (type === 'calories') return String(getRawMetric('calories', 0))\n`;
+    jsCode += `  if (type === 'distance') return formatDistanceValue(getRawMetric('distance', 0))\n`;
+    jsCode += `  if (type === 'sleep') return formatDurationValue(getRawMetric('sleep', 0))\n`;
+    jsCode += `  if (type === 'stress') return String(getRawMetric('stress', 0))\n`;
+    jsCode += `  if (type === 'spo2') return String(getRawMetric('spo2', 0))\n`;
+    jsCode += `  if (type === 'pai') return String(getRawMetric('pai', 0))\n`;
     jsCode += `  if (type === 'weather') return readString(metricSensors.weather, ['getCurrent'], ['weather', 'condition', 'text', 'name'], fallback || '')\n`;
-    jsCode += `  if (type === 'temperature') return getRawMetric('temperature', 0) + '°C'\n`;
-    jsCode += `  if (type === 'humidity') return getRawMetric('humidity', 0) + '%'\n`;
-    jsCode += `  if (type === 'uv') return 'UV ' + getRawMetric('uv', 0)\n`;
-    jsCode += `  if (type === 'altitude') return getRawMetric('altitude', 0) + ' M'\n`;
-    jsCode += `  if (type === 'pressure') return getRawMetric('pressure', 0) + ' HPA'\n`;
+    jsCode += `  if (type === 'temperature') return String(getRawMetric('temperature', 0))\n`;
+    jsCode += `  if (type === 'humidity') return String(getRawMetric('humidity', 0))\n`;
+    jsCode += `  if (type === 'uv') return String(getRawMetric('uv', 0))\n`;
+    jsCode += `  if (type === 'altitude') return String(getRawMetric('altitude', 0))\n`;
+    jsCode += `  if (type === 'pressure') return String(getRawMetric('pressure', 0))\n`;
     jsCode += `  if (type === 'sunrise') return readString(metricSensors.weather, ['getSunrise'], ['sunrise'], fallback || '')\n`;
     jsCode += `  if (type === 'sunset') return readString(metricSensors.weather, ['getSunset'], ['sunset'], fallback || '')\n`;
     jsCode += `  if (type === 'alarm') return readString(metricSensors.alarm, ['getNext'], ['next', 'time'], fallback || '')\n`;
@@ -1926,15 +2145,19 @@ function generateZeppCode() {
         const contentY = el.y + titleOffset;
         const contentHeight = Math.max(1, el.height - titleOffset);
         const contentFontPath = getZeppFontPath(el.fontFamily || 'font-inter');
+        const contentTextSize = getZeppTextSize(el.fontFamily || 'font-inter', el.fontSize || 18);
+        const contentTextHeight = getZeppTextBoxHeight(el.fontFamily || 'font-inter', el.fontSize || 18, contentHeight);
 
         const fullImageFallback = canRenderElementAsImage(el) && el.renderAsImage;
 
         if (el.titleEnabled && !fullImageFallback) {
             const titleFontPath = getZeppFontPath(el.titleFontFamily || 'font-rajdhani');
+            const titleTextSize = getZeppTextSize(el.titleFontFamily || 'font-rajdhani', el.titleFontSize || 10);
+            const titleTextHeight = getZeppTextBoxHeight(el.titleFontFamily || 'font-rajdhani', el.titleFontSize || 10, el.titleFontSize || 10);
             jsCode += `    createWidget(widget.TEXT, {\n`;
-            jsCode += `      x: ${el.x}, y: ${el.y}, w: ${el.width}, h: ${Math.max(10, el.titleFontSize || 10)},\n`;
+            jsCode += `      x: ${el.x}, y: ${el.y}, w: ${el.width}, h: ${titleTextHeight},\n`;
             jsCode += `      text: '${escapeGeneratedText(el.titleText)}',\n`;
-            jsCode += `      text_size: ${el.titleFontSize || 10},\n`;
+            jsCode += `      text_size: ${titleTextSize},\n`;
             jsCode += `      font: '${titleFontPath}',\n`;
             jsCode += `      color: 0x${el.titleColor.replace('#', '')},\n`;
             jsCode += `      align_h: ${zeppAlign}\n`;
@@ -1957,9 +2180,9 @@ function generateZeppCode() {
             jsCode += `      color: 0x${el.color.replace('#', '')}\n`;
             jsCode += `    })\n`;
             jsCode += `    const ${labelName} = createWidget(widget.TEXT, {\n`;
-            jsCode += `      x: ${el.x}, y: ${contentY}, w: ${el.width}, h: 12,\n`;
+            jsCode += `      x: ${el.x}, y: ${contentY}, w: ${el.width}, h: ${getZeppTextBoxHeight(el.fontFamily || 'font-inter', 10, 12)},\n`;
             jsCode += `      text: getMetricText('${progressType}', '${fallbackText}'),\n`;
-            jsCode += `      text_size: 10,\n`;
+            jsCode += `      text_size: ${getZeppTextSize(el.fontFamily || 'font-inter', 10)},\n`;
             jsCode += `      font: '${contentFontPath}',\n`;
             jsCode += `      color: 0x${el.color.replace('#', '')},\n`;
             jsCode += `      align_h: align.RIGHT\n`;
@@ -1994,9 +2217,9 @@ function generateZeppCode() {
             const dynamicType = getDynamicMetricType(el);
             const textWidgetName = `textWidget${idx}`;
             jsCode += `    const ${textWidgetName} = createWidget(widget.TEXT, {\n`;
-            jsCode += `      x: ${el.x}, y: ${contentY}, w: ${el.width}, h: ${contentHeight},\n`;
+            jsCode += `      x: ${el.x}, y: ${contentY}, w: ${el.width}, h: ${contentTextHeight},\n`;
             jsCode += `      text: ${getGeneratedTextExpression(el)},\n`;
-            jsCode += `      text_size: ${el.fontSize || 18},\n`;
+            jsCode += `      text_size: ${contentTextSize},\n`;
             jsCode += `      font: '${contentFontPath}',\n`;
             jsCode += `      color: 0x${getElementDisplayColor(el).replace('#', '')},\n`;
             jsCode += `      align_h: ${zeppAlign}\n`;

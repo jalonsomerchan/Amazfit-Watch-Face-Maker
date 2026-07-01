@@ -93,19 +93,11 @@
     </div>
 
     <!-- Área Principal de Trabajo Reorganizada -->
-    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden">
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 lg:p-6 overflow-visible">
         <!-- Biblioteca superior de Widgets -->
         <section
-            class="lg:col-span-12 bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-sm">
-            <div class="flex items-center justify-between gap-3 mb-3">
-                <h2 class="text-xs font-bold tracking-wider text-slate-200 uppercase flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="w-4 h-4 text-cyan-400"></i> Biblioteca de Widgets
-                </h2>
-                <span id="watch-resolution-summary"
-                    class="text-[10px] font-mono bg-slate-950 border border-slate-800 px-2 py-1 rounded text-cyan-300">466
-                    x 466</span>
-            </div>
-            <div class="flex gap-2 overflow-x-auto pb-1 widget-toolbar">
+            class="lg:col-span-12 sticky top-[84px] z-40 bg-slate-950/88 border border-slate-800/90 rounded-2xl px-3 py-2.5 backdrop-blur-md shadow-lg shadow-slate-950/30">
+            <div class="flex gap-2 overflow-x-auto widget-toolbar">
                 <button onclick="addElement('time')" class="widget-tool"><i data-lucide="clock"
                         class="w-4 h-4 text-cyan-400"></i><span>Hora</span></button>
                 <button onclick="addElement('date')" class="widget-tool"><i data-lucide="calendar"
@@ -162,7 +154,7 @@
         </section>
 
         <!-- PANEL IZQUIERDO: Configuración y Opciones (lg:col-span-6) -->
-        <section class="lg:col-span-6 flex flex-col gap-6 overflow-y-auto pr-2 max-h-[calc(100vh-130px)]">
+        <section class="lg:col-span-6 flex flex-col gap-6 overflow-y-auto pr-2 max-h-[calc(100vh-150px)]">
 
             <!-- 1. Añadir Widgets -->
             <div class="hidden bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
@@ -329,68 +321,6 @@
                 </div>
             </div>
 
-            <!-- 2. Apariencia y Fondo Global -->
-            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
-                <h2 class="text-sm font-bold tracking-wider text-slate-200 uppercase mb-4 flex items-center gap-2">
-                    <i data-lucide="palette" class="w-4.5 h-4.5 text-indigo-400"></i> Fondo del Reloj
-                </h2>
-                <div class="space-y-4">
-                    <div>
-                        <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                            <button onclick="changeBgType('color')" id="bg-btn-color"
-                                class="py-1 text-xs font-medium rounded bg-indigo-600 text-white">Color</button>
-                            <button onclick="changeBgType('gradient')" id="bg-btn-gradient"
-                                class="py-1 text-xs font-medium rounded text-slate-400">Gradiente</button>
-                            <button onclick="changeBgType('image')" id="bg-btn-image"
-                                class="py-1 text-xs font-medium rounded text-slate-400">Imagen</button>
-                        </div>
-                    </div>
-
-                    <!-- Configuración Color -->
-                    <div id="bg-config-color" class="space-y-2">
-                        <div class="flex items-center gap-3">
-                            <input type="color" id="bg-color" value="#020617" onchange="updateBgSettings()"
-                                class="w-10 h-10 rounded border border-slate-700 bg-transparent cursor-pointer">
-                            <input type="text" id="bg-color-hex" value="#020617"
-                                oninput="updateBgSettingsFromText('color')"
-                                class="flex-1 bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs font-mono">
-                        </div>
-                    </div>
-
-                    <!-- Configuración Gradiente -->
-                    <div id="bg-config-gradient" class="space-y-3 hidden">
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Inicial</label>
-                                <input type="color" id="bg-grad-start" value="#1e1b4b" onchange="updateBgSettings()"
-                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Final</label>
-                                <input type="color" id="bg-grad-end" value="#020617" onchange="updateBgSettings()"
-                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
-                            </div>
-                        </div>
-                        <div>
-                            <input type="range" id="bg-grad-angle" min="0" max="360" value="135"
-                                oninput="updateBgSettings()" class="w-full accent-cyan-500">
-                        </div>
-                    </div>
-
-                    <!-- Configuración Imagen -->
-                    <div id="bg-config-image" class="space-y-2 hidden">
-                        <div
-                            class="border-2 border-dashed border-slate-800 rounded-xl p-4 text-center hover:border-slate-700 transition cursor-pointer relative">
-                            <input type="file" id="bg-upload-image" accept="image/*"
-                                onchange="handleBgImageUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
-                            <i data-lucide="image-plus" class="w-6 h-6 text-slate-500 mx-auto mb-1"></i>
-                            <span class="text-[11px] text-slate-400 block font-medium">Subir fondo con la resolución
-                                elegida</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- 3. Inspector de Widget Seleccionado -->
             <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
                 <h2 class="text-sm font-bold tracking-wider text-slate-200 uppercase mb-4 flex items-center gap-2">
@@ -472,6 +402,16 @@
                         </label>
                     </div>
 
+                    <div id="prop-copy-style-container"
+                        class="border border-slate-800/80 bg-slate-950/50 rounded-lg p-2">
+                        <button id="prop-copy-style-button" onclick="startStyleCopyMode()"
+                            class="w-full h-8 inline-flex items-center justify-center gap-2 rounded border border-cyan-900/70 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-cyan-100 transition text-xs font-semibold"
+                            title="Copiar estilo desde otro elemento">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            Copiar estilo
+                        </button>
+                    </div>
+
                     <!-- Posición y Dimensiones -->
                     <div class="grid grid-cols-4 gap-2">
                         <div>
@@ -524,10 +464,10 @@
                         <div>
                             <label class="text-[10px] text-slate-400 font-semibold block mb-1">Tamaño Fuente</label>
                             <div class="flex items-center gap-2">
-                                <input type="range" id="prop-size-slider" min="8" max="120"
+                                <input type="range" id="prop-size-slider" min="8" max="220"
                                     oninput="updateElementProp('fontSize', parseInt(this.value) || 12)"
                                     class="flex-1 accent-cyan-500">
-                                <input type="number" id="prop-size" min="8" max="120"
+                                <input type="number" id="prop-size" min="8" max="220"
                                     oninput="updateElementProp('fontSize', parseInt(this.value) || 12)"
                                     class="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-center font-mono">
                             </div>
@@ -573,10 +513,10 @@
                                 <div>
                                     <label class="text-[9px] text-slate-400 block mb-1">Tamaño título</label>
                                     <div class="flex items-center gap-2">
-                                        <input type="range" id="prop-title-size-slider" min="6" max="48"
+                                        <input type="range" id="prop-title-size-slider" min="6" max="96"
                                             oninput="updateElementProp('titleFontSize', parseInt(this.value) || 10)"
                                             class="flex-1 accent-cyan-500">
-                                        <input type="number" id="prop-title-size" min="6" max="48"
+                                        <input type="number" id="prop-title-size" min="6" max="96"
                                             oninput="updateElementProp('titleFontSize', parseInt(this.value) || 10)"
                                             class="w-14 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
                                     </div>
@@ -738,17 +678,73 @@
                 </div>
             </div>
 
-            <!-- 4. Previsualización de Código Real Zepp OS -->
+            <!-- 4. Apariencia y Fondo Global -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+                <h2 class="text-sm font-bold tracking-wider text-slate-200 uppercase mb-4 flex items-center gap-2">
+                    <i data-lucide="palette" class="w-4.5 h-4.5 text-indigo-400"></i> Fondo del Reloj
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                            <button onclick="changeBgType('color')" id="bg-btn-color"
+                                class="py-1 text-xs font-medium rounded bg-indigo-600 text-white">Color</button>
+                            <button onclick="changeBgType('gradient')" id="bg-btn-gradient"
+                                class="py-1 text-xs font-medium rounded text-slate-400">Gradiente</button>
+                            <button onclick="changeBgType('image')" id="bg-btn-image"
+                                class="py-1 text-xs font-medium rounded text-slate-400">Imagen</button>
+                        </div>
+                    </div>
+
+                    <div id="bg-config-color" class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="bg-color" value="#020617" onchange="updateBgSettings()"
+                                class="w-10 h-10 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            <input type="text" id="bg-color-hex" value="#020617"
+                                oninput="updateBgSettingsFromText('color')"
+                                class="flex-1 bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs font-mono">
+                        </div>
+                    </div>
+
+                    <div id="bg-config-gradient" class="space-y-3 hidden">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Inicial</label>
+                                <input type="color" id="bg-grad-start" value="#1e1b4b" onchange="updateBgSettings()"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Final</label>
+                                <input type="color" id="bg-grad-end" value="#020617" onchange="updateBgSettings()"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <input type="range" id="bg-grad-angle" min="0" max="360" value="135"
+                                oninput="updateBgSettings()" class="w-full accent-cyan-500">
+                        </div>
+                    </div>
+
+                    <div id="bg-config-image" class="space-y-2 hidden">
+                        <div
+                            class="border-2 border-dashed border-slate-800 rounded-xl p-4 text-center hover:border-slate-700 transition cursor-pointer relative">
+                            <input type="file" id="bg-upload-image" accept="image/*"
+                                onchange="handleBgImageUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+                            <i data-lucide="image-plus" class="w-6 h-6 text-slate-500 mx-auto mb-1"></i>
+                            <span class="text-[11px] text-slate-400 block font-medium">Subir fondo con la resolución
+                                elegida</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Previsualización de Código Real Zepp OS -->
             <div
                 class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm flex flex-col min-h-[220px]">
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-1.5">
                         <i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i> Código Real Zepp OS JS (SDK v2/v3)
                     </h3>
-                    <button onclick="copyCode()"
-                        class="text-slate-400 hover:text-white transition text-xs flex items-center gap-1">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Código
-                    </button>
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wide">Listo para copiar</span>
                 </div>
                 <div
                     class="flex-1 bg-slate-950 rounded-xl p-3 border border-slate-800/80 overflow-y-auto max-h-[180px]">
@@ -814,9 +810,13 @@
                     class="px-3.5 py-2 bg-red-950/30 hover:bg-red-950/60 text-red-400 text-xs font-semibold rounded-lg transition border border-red-900/40 flex items-center gap-1.5 shadow">
                     <i data-lucide="trash-2" class="w-4 h-4"></i> Limpiar Todo
                 </button>
-                <button onclick="exportAsImage()"
+                <button onclick="exportJSON()"
                     class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-indigo-500/20 transition flex items-center gap-1.5">
-                    <i data-lucide="image" class="w-4 h-4"></i> Descargar Imagen PNG
+                    <i data-lucide="download" class="w-4 h-4"></i> Exportar proyecto
+                </button>
+                <button onclick="copyCode()"
+                    class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Copiar código
                 </button>
             </div>
         </section>
