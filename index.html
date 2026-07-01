@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazfit Active Watch Face Studio Premium</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- ZIP generator -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <!-- Premium Google Fonts para Relojes -->
+    <link rel="stylesheet" href="css/styles.css">
+
+</head>
+
+<body class="bg-slate-950 text-slate-100 font-inter min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Header / Barra de Navegación -->
+    <header
+        class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-4 sticky top-0 z-50 flex flex-wrap gap-4 items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-cyan-500 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-500/20">
+                <i data-lucide="watch" class="w-6 h-6 text-white animate-pulse"></i>
+            </div>
+            <div>
+                <h1
+                    class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-cyan-400 bg-clip-text text-transparent">
+                    Amazfit Active Studio Premium
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">Editor Visual de Esferas con Widgets Avanzados (Zepp OS)
+                </p>
+            </div>
+        </div>
+
+        <!-- Acciones Rápidas de Configuración -->
+        <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="applyTemplate('sport')"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 text-slate-300">
+                <i data-lucide="award" class="w-3.5 h-3.5 text-orange-400"></i> Deportivo
+            </button>
+            <button onclick="applyTemplate('minimal')"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 text-slate-300">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-400"></i> Minimalista
+            </button>
+            <button onclick="applyTemplate('classic')"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 text-slate-300">
+                <i data-lucide="clock" class="w-3.5 h-3.5 text-cyan-400"></i> Clásico
+            </button>
+            <select id="watch-model" onchange="changeWatchModel(this.value)"
+                class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700/70 outline-none">
+                <option value="active3premium">Amazfit Active 3 Premium · 466x466</option>
+                <option value="active">Amazfit Active original · 390x450</option>
+                <option value="active2premium">Amazfit Active 2 Premium · 466x466</option>
+                <option value="gts4">Amazfit GTS 4 · 390x450</option>
+                <option value="gtr4">Amazfit GTR 4 · 466x466</option>
+                <option value="balance">Amazfit Balance · 480x480</option>
+                <option value="bip5">Amazfit Bip 5 · 320x380</option>
+                <option value="custom">Personalizado · 390x450</option>
+            </select>
+            <select id="watch-shape" onchange="changeWatchShape(this.value)"
+                class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg px-3 py-1.5 border border-slate-700/70 outline-none">
+                <option value="round">Preview redondo</option>
+                <option value="square">Preview cuadrado</option>
+            </select>
+            <div class="h-6 w-[1px] bg-slate-800 mx-1"></div>
+            <button onclick="openInstallModal()"
+                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 text-slate-300">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5 text-cyan-300"></i> Cómo instalar
+            </button>
+            <button onclick="exportJSON()"
+                class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
+                title="Exportar proyecto Zeus ZIP">
+                <i data-lucide="download" class="w-4 h-4"></i>
+            </button>
+            <label class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition cursor-pointer"
+                title="Importar Configuración JSON">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <input type="file" id="import-json" class="hidden" accept=".json" onchange="importJSON(event)">
+            </label>
+        </div>
+    </header>
+
+    <!-- Notificación Customizada -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 border border-cyan-500/30 text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3">
+        <div id="toast-icon" class="text-cyan-400">
+            <i data-lucide="info" class="w-5 h-5"></i>
+        </div>
+        <span id="toast-text" class="text-sm font-medium"></span>
+    </div>
+
+    <!-- Área Principal de Trabajo Reorganizada -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden">
+        <!-- Biblioteca superior de Widgets -->
+        <section
+            class="lg:col-span-12 bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-sm">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <h2 class="text-xs font-bold tracking-wider text-slate-200 uppercase flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-cyan-400"></i> Biblioteca de Widgets
+                </h2>
+                <span id="watch-resolution-summary"
+                    class="text-[10px] font-mono bg-slate-950 border border-slate-800 px-2 py-1 rounded text-cyan-300">466
+                    x 466</span>
+            </div>
+            <div class="flex gap-2 overflow-x-auto pb-1 widget-toolbar">
+                <button onclick="addElement('time')" class="widget-tool"><i data-lucide="clock"
+                        class="w-4 h-4 text-cyan-400"></i><span>Hora</span></button>
+                <button onclick="addElement('date')" class="widget-tool"><i data-lucide="calendar"
+                        class="w-4 h-4 text-emerald-400"></i><span>Fecha</span></button>
+                <button onclick="addElement('steps')" class="widget-tool"><i data-lucide="footprints"
+                        class="w-4 h-4 text-amber-400"></i><span>Pasos</span></button>
+                <button onclick="addElement('calories')" class="widget-tool"><i data-lucide="flame"
+                        class="w-4 h-4 text-orange-400"></i><span>Kcal</span></button>
+                <button onclick="addElement('distance')" class="widget-tool"><i data-lucide="map"
+                        class="w-4 h-4 text-lime-400"></i><span>Distancia</span></button>
+                <button onclick="addElement('heart')" class="widget-tool"><i data-lucide="heart"
+                        class="w-4 h-4 text-rose-500"></i><span>Pulso</span></button>
+                <button onclick="addElement('battery')" class="widget-tool"><i data-lucide="battery-charging"
+                        class="w-4 h-4 text-teal-400"></i><span>Batería</span></button>
+                <button onclick="addElement('sleep')" class="widget-tool"><i data-lucide="bed"
+                        class="w-4 h-4 text-indigo-300"></i><span>Sueño</span></button>
+                <button onclick="addElement('stress')" class="widget-tool"><i data-lucide="activity"
+                        class="w-4 h-4 text-red-400"></i><span>Estrés</span></button>
+                <button onclick="addElement('spo2')" class="widget-tool"><i data-lucide="droplets"
+                        class="w-4 h-4 text-sky-400"></i><span>SpO2</span></button>
+                <button onclick="addElement('pai')" class="widget-tool"><i data-lucide="gauge"
+                        class="w-4 h-4 text-violet-400"></i><span>PAI</span></button>
+                <button onclick="addElement('weather')" class="widget-tool"><i data-lucide="cloud-sun"
+                        class="w-4 h-4 text-yellow-300"></i><span>Clima</span></button>
+                <button onclick="addElement('temperature')" class="widget-tool"><i data-lucide="thermometer"
+                        class="w-4 h-4 text-red-300"></i><span>Temp</span></button>
+                <button onclick="addElement('humidity')" class="widget-tool"><i data-lucide="waves"
+                        class="w-4 h-4 text-blue-300"></i><span>Humedad</span></button>
+                <button onclick="addElement('uv')" class="widget-tool"><i data-lucide="sun"
+                        class="w-4 h-4 text-yellow-400"></i><span>UV</span></button>
+                <button onclick="addElement('altitude')" class="widget-tool"><i data-lucide="mountain"
+                        class="w-4 h-4 text-stone-300"></i><span>Altitud</span></button>
+                <button onclick="addElement('pressure')" class="widget-tool"><i data-lucide="gauge"
+                        class="w-4 h-4 text-cyan-300"></i><span>Presión</span></button>
+                <button onclick="addElement('sunrise')" class="widget-tool"><i data-lucide="sunrise"
+                        class="w-4 h-4 text-orange-300"></i><span>Amanecer</span></button>
+                <button onclick="addElement('sunset')" class="widget-tool"><i data-lucide="sunset"
+                        class="w-4 h-4 text-pink-300"></i><span>Atardecer</span></button>
+                <button onclick="addElement('alarm')" class="widget-tool"><i data-lucide="bell"
+                        class="w-4 h-4 text-purple-300"></i><span>Alarma</span></button>
+                <button onclick="addElement('bluetooth')" class="widget-tool"><i data-lucide="bluetooth"
+                        class="w-4 h-4 text-blue-400"></i><span>Bluetooth</span></button>
+                <button onclick="addElement('stopwatch')" class="widget-tool"><i data-lucide="timer"
+                        class="w-4 h-4 text-slate-300"></i><span>Crono</span></button>
+                <button onclick="addElement('label')" class="widget-tool"><i data-lucide="type"
+                        class="w-4 h-4 text-fuchsia-400"></i><span>Texto</span></button>
+                <button onclick="addElement('progress-bar')" class="widget-tool widget-tool-accent"><i
+                        data-lucide="percent" class="w-4 h-4 text-cyan-300"></i><span>Barra</span></button>
+                <button onclick="addElement('chart')" class="widget-tool widget-tool-accent"><i data-lucide="activity"
+                        class="w-4 h-4 text-rose-300"></i><span>Onda</span></button>
+                <button onclick="addElement('image')" class="widget-tool widget-tool-accent"><i data-lucide="image"
+                        class="w-4 h-4 text-amber-300"></i><span>Imagen</span></button>
+            </div>
+        </section>
+
+        <!-- PANEL IZQUIERDO: Configuración y Opciones (lg:col-span-6) -->
+        <section class="lg:col-span-6 flex flex-col gap-6 overflow-y-auto pr-2 max-h-[calc(100vh-130px)]">
+
+            <!-- 1. Añadir Widgets -->
+            <div class="hidden bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+                <h2 class="text-sm font-bold tracking-wider text-slate-200 uppercase mb-4 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4.5 h-4.5 text-cyan-400"></i> Biblioteca de Widgets
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                    <button onclick="addElement('time')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="clock" class="w-4 h-4 text-cyan-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Reloj Digital</div>
+                    </button>
+                    <button onclick="addElement('date')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="calendar"
+                            class="w-4 h-4 text-emerald-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Fecha / Día</div>
+                    </button>
+                    <button onclick="addElement('steps')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="footprints"
+                            class="w-4 h-4 text-amber-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Pasos</div>
+                    </button>
+                    <button onclick="addElement('calories')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="flame"
+                            class="w-4 h-4 text-orange-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Calorías</div>
+                    </button>
+                    <button onclick="addElement('distance')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="map"
+                            class="w-4 h-4 text-lime-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Distancia</div>
+                    </button>
+                    <button onclick="addElement('heart')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="heart"
+                            class="w-4 h-4 text-rose-500 mb-1 group-hover:scale-110 transition animate-pulse"></i>
+                        <div class="text-[11px] font-bold">Ritmo Card.</div>
+                    </button>
+                    <button onclick="addElement('battery')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="battery-charging"
+                            class="w-4 h-4 text-teal-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Batería</div>
+                    </button>
+                    <button onclick="addElement('sleep')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="bed"
+                            class="w-4 h-4 text-indigo-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Sueño</div>
+                    </button>
+                    <button onclick="addElement('stress')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="activity"
+                            class="w-4 h-4 text-red-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Estrés</div>
+                    </button>
+                    <button onclick="addElement('spo2')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="droplets"
+                            class="w-4 h-4 text-sky-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">SpO2</div>
+                    </button>
+                    <button onclick="addElement('pai')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="gauge"
+                            class="w-4 h-4 text-violet-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">PAI</div>
+                    </button>
+                    <button onclick="addElement('weather')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="cloud-sun"
+                            class="w-4 h-4 text-yellow-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Clima</div>
+                    </button>
+                    <button onclick="addElement('temperature')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="thermometer"
+                            class="w-4 h-4 text-red-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Temperatura</div>
+                    </button>
+                    <button onclick="addElement('humidity')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="waves"
+                            class="w-4 h-4 text-blue-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Humedad</div>
+                    </button>
+                    <button onclick="addElement('uv')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="sun"
+                            class="w-4 h-4 text-yellow-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Índice UV</div>
+                    </button>
+                    <button onclick="addElement('altitude')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="mountain"
+                            class="w-4 h-4 text-stone-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Altitud</div>
+                    </button>
+                    <button onclick="addElement('pressure')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="gauge"
+                            class="w-4 h-4 text-cyan-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Presión</div>
+                    </button>
+                    <button onclick="addElement('sunrise')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="sunrise"
+                            class="w-4 h-4 text-orange-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Amanecer</div>
+                    </button>
+                    <button onclick="addElement('sunset')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="sunset"
+                            class="w-4 h-4 text-pink-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Atardecer</div>
+                    </button>
+                    <button onclick="addElement('alarm')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="bell"
+                            class="w-4 h-4 text-purple-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Alarma</div>
+                    </button>
+                    <button onclick="addElement('bluetooth')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="bluetooth"
+                            class="w-4 h-4 text-blue-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Bluetooth</div>
+                    </button>
+                    <button onclick="addElement('stopwatch')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="timer"
+                            class="w-4 h-4 text-slate-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Cronómetro</div>
+                    </button>
+                    <button onclick="addElement('label')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="type"
+                            class="w-4 h-4 text-fuchsia-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Texto Libre</div>
+                    </button>
+
+                    <!-- NUEVOS ELEMENTOS SOLICITADOS -->
+                    <button onclick="addElement('progress-bar')"
+                        class="p-2.5 bg-indigo-950/20 hover:bg-indigo-950/40 border border-indigo-900/40 hover:border-indigo-700 rounded-xl text-left transition group">
+                        <i data-lucide="percent"
+                            class="w-4 h-4 text-cyan-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold text-cyan-300">Barras Progreso</div>
+                    </button>
+                    <button onclick="addElement('chart')"
+                        class="p-2.5 bg-indigo-950/20 hover:bg-indigo-950/40 border border-indigo-900/40 hover:border-indigo-700 rounded-xl text-left transition group">
+                        <i data-lucide="activity"
+                            class="w-4 h-4 text-rose-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold text-rose-300">Gráfico Onda</div>
+                    </button>
+                    <button onclick="addElement('image')"
+                        class="p-2.5 bg-indigo-950/20 hover:bg-indigo-950/40 border border-indigo-900/40 hover:border-indigo-700 rounded-xl text-left transition group">
+                        <i data-lucide="image" class="w-4 h-4 text-amber-400 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold text-amber-300">Imagen / Icono</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Apariencia y Fondo Global -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+                <h2 class="text-sm font-bold tracking-wider text-slate-200 uppercase mb-4 flex items-center gap-2">
+                    <i data-lucide="palette" class="w-4.5 h-4.5 text-indigo-400"></i> Fondo del Reloj
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                            <button onclick="changeBgType('color')" id="bg-btn-color"
+                                class="py-1 text-xs font-medium rounded bg-indigo-600 text-white">Color</button>
+                            <button onclick="changeBgType('gradient')" id="bg-btn-gradient"
+                                class="py-1 text-xs font-medium rounded text-slate-400">Gradiente</button>
+                            <button onclick="changeBgType('image')" id="bg-btn-image"
+                                class="py-1 text-xs font-medium rounded text-slate-400">Imagen</button>
+                        </div>
+                    </div>
+
+                    <!-- Configuración Color -->
+                    <div id="bg-config-color" class="space-y-2">
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="bg-color" value="#020617" onchange="updateBgSettings()"
+                                class="w-10 h-10 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            <input type="text" id="bg-color-hex" value="#020617"
+                                oninput="updateBgSettingsFromText('color')"
+                                class="flex-1 bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Configuración Gradiente -->
+                    <div id="bg-config-gradient" class="space-y-3 hidden">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Inicial</label>
+                                <input type="color" id="bg-grad-start" value="#1e1b4b" onchange="updateBgSettings()"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Final</label>
+                                <input type="color" id="bg-grad-end" value="#020617" onchange="updateBgSettings()"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <input type="range" id="bg-grad-angle" min="0" max="360" value="135"
+                                oninput="updateBgSettings()" class="w-full accent-cyan-500">
+                        </div>
+                    </div>
+
+                    <!-- Configuración Imagen -->
+                    <div id="bg-config-image" class="space-y-2 hidden">
+                        <div
+                            class="border-2 border-dashed border-slate-800 rounded-xl p-4 text-center hover:border-slate-700 transition cursor-pointer relative">
+                            <input type="file" id="bg-upload-image" accept="image/*"
+                                onchange="handleBgImageUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+                            <i data-lucide="image-plus" class="w-6 h-6 text-slate-500 mx-auto mb-1"></i>
+                            <span class="text-[11px] text-slate-400 block font-medium">Subir fondo con la resolución
+                                elegida</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Inspector de Widget Seleccionado -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+                <h2 class="text-sm font-bold tracking-wider text-slate-200 uppercase mb-4 flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4.5 h-4.5 text-cyan-400"></i> Inspector de Propiedades
+                </h2>
+
+                <div id="no-selection-msg"
+                    class="text-center py-6 bg-slate-950/40 border border-slate-800/60 rounded-xl">
+                    <i data-lucide="mouse-pointer-click" class="w-6 h-6 text-slate-600 mx-auto mb-2 animate-bounce"></i>
+                    <p class="text-xs text-slate-500 font-medium px-4">Selecciona un elemento en el reloj de la derecha
+                        para personalizarlo.</p>
+                </div>
+
+                <div id="inspector-form" class="space-y-4 hidden">
+                    <div class="flex items-center justify-between bg-slate-950 p-2 rounded-lg border border-slate-800">
+                        <span id="elem-badge"
+                            class="px-2 py-0.5 bg-indigo-950 text-indigo-400 border border-indigo-800 text-[9px] uppercase font-bold rounded-full">Widget</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="centerSelectedElement('horizontal')"
+                                class="text-cyan-300 hover:text-cyan-200 transition text-xs flex items-center gap-1"
+                                title="Centrar horizontalmente">
+                                <i data-lucide="align-horizontal-space-around" class="w-3.5 h-3.5"></i> H
+                            </button>
+                            <button onclick="centerSelectedElement('vertical')"
+                                class="text-cyan-300 hover:text-cyan-200 transition text-xs flex items-center gap-1"
+                                title="Centrar verticalmente">
+                                <i data-lucide="align-vertical-space-around" class="w-3.5 h-3.5"></i> V
+                            </button>
+                            <button onclick="deleteSelectedElement()"
+                                class="text-red-400 hover:text-red-300 transition text-xs flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Configuración General según el Elemento -->
+                    <div id="prop-text-container" class="space-y-1">
+                        <label class="text-[10px] text-slate-400 font-semibold block">Contenido / Texto</label>
+                        <input type="text" id="prop-text" oninput="updateElementProp('text', this.value)"
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs">
+                    </div>
+
+                    <div id="prop-date-format-container" class="space-y-1 hidden">
+                        <label class="text-[10px] text-slate-400 font-semibold block">Formato de fecha</label>
+                        <select id="prop-date-format" onchange="updateElementProp('dateFormat', this.value)"
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-300">
+                            <option value="weekday-day-month-short">MIE, 30 JUN</option>
+                            <option value="weekday-day-month-long">MIERCOLES, 30 JUNIO</option>
+                            <option value="day-month-short">30 JUN</option>
+                            <option value="day-month-long">30 JUNIO</option>
+                            <option value="day-month-numeric">30/06</option>
+                            <option value="day-month-year-numeric">30/06/2026</option>
+                            <option value="iso">2026-06-30</option>
+                            <option value="month-day">JUN 30</option>
+                        </select>
+                    </div>
+
+                    <div id="prop-affix-container" class="grid grid-cols-2 gap-2 hidden">
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-1">Texto antes</label>
+                            <input type="text" id="prop-prefix" placeholder="Ej: Batería "
+                                oninput="updateElementProp('metricPrefix', this.value)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-1">Texto después</label>
+                            <input type="text" id="prop-suffix" placeholder="Ej: restantes"
+                                oninput="updateElementProp('metricSuffix', this.value)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs">
+                        </div>
+                    </div>
+
+                    <div id="prop-render-image-container" class="hidden">
+                        <label class="flex items-center gap-2 text-[10px] text-slate-300 font-bold uppercase">
+                            <input type="checkbox" id="prop-render-image"
+                                onchange="updateElementProp('renderAsImage', this.checked)"
+                                class="accent-cyan-500">
+                            Fallback: texto como imagen
+                        </label>
+                    </div>
+
+                    <!-- Posición y Dimensiones -->
+                    <div class="grid grid-cols-4 gap-2">
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-0.5 text-center">X
+                                (px)</label>
+                            <input type="number" id="prop-x" oninput="updateElementProp('x', parseInt(this.value) || 0)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-0.5 text-center">Y
+                                (px)</label>
+                            <input type="number" id="prop-y" oninput="updateElementProp('y', parseInt(this.value) || 0)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
+                        </div>
+                        <div>
+                            <label
+                                class="text-[10px] text-slate-400 font-semibold block mb-0.5 text-center">Ancho</label>
+                            <input type="number" id="prop-w"
+                                oninput="updateElementProp('width', parseInt(this.value) || 10)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
+                        </div>
+                        <div>
+                            <label
+                                class="text-[10px] text-slate-400 font-semibold block mb-0.5 text-center">Alto</label>
+                            <input type="number" id="prop-h"
+                                oninput="updateElementProp('height', parseInt(this.value) || 10)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Fuentes de Letras Ampliadas -->
+                    <div id="prop-font-container">
+                        <label class="text-[10px] text-slate-400 font-semibold block mb-1">Fuentes de Letras
+                            (Nuevas)</label>
+                        <select id="prop-font" onchange="updateElementProp('fontFamily', this.value)"
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-300">
+                            <option value="font-bebas">Bebas Neue (Impactante / Deportes)</option>
+                            <option value="font-teko">Teko (Estrecha y Grande)</option>
+                            <option value="font-orbitron">Orbitron (Digital / Futurista)</option>
+                            <option value="font-chakra">Chakra Petch (Moderno / Racing)</option>
+                            <option value="font-rajdhani">Rajdhani (Tecnológico)</option>
+                            <option value="font-mono-tech">Share Tech Mono (Retro Computador)</option>
+                            <option value="font-montserrat">Montserrat (Ultra Premium / Minimalist)</option>
+                            <option value="font-inter">Inter (Legible / Smartwatch)</option>
+                        </select>
+                    </div>
+
+                    <!-- Tamaño de Letra / Color -->
+                    <div class="grid grid-cols-2 gap-2" id="prop-color-size-container">
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-1">Tamaño Fuente</label>
+                            <div class="flex items-center gap-2">
+                                <input type="range" id="prop-size-slider" min="8" max="120"
+                                    oninput="updateElementProp('fontSize', parseInt(this.value) || 12)"
+                                    class="flex-1 accent-cyan-500">
+                                <input type="number" id="prop-size" min="8" max="120"
+                                    oninput="updateElementProp('fontSize', parseInt(this.value) || 12)"
+                                    class="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-center font-mono">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-1">Color Elemento</label>
+                            <div class="flex items-center gap-1.5">
+                                <input type="color" id="prop-color" onchange="updateElementProp('color', this.value)"
+                                    class="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                                <input type="text" id="prop-color-hex" oninput="updateElementProp('color', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1.5 text-[10px] text-center font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Título opcional -->
+                    <div id="prop-title-container" class="space-y-2 border-t border-slate-800/80 pt-3">
+                        <label class="flex items-center gap-2 text-[10px] text-slate-300 font-bold uppercase">
+                            <input type="checkbox" id="prop-title-enabled"
+                                onchange="updateElementProp('titleEnabled', this.checked)"
+                                class="accent-cyan-500">
+                            Título encima del widget
+                        </label>
+                        <div id="prop-title-fields" class="space-y-2 hidden">
+                            <input type="text" id="prop-title-text" placeholder="Título"
+                                oninput="updateElementProp('titleText', this.value)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Fuente del título</label>
+                                <select id="prop-title-font" onchange="updateElementProp('titleFontFamily', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-300">
+                                    <option value="font-bebas">Bebas Neue</option>
+                                    <option value="font-teko">Teko</option>
+                                    <option value="font-orbitron">Orbitron</option>
+                                    <option value="font-chakra">Chakra Petch</option>
+                                    <option value="font-rajdhani">Rajdhani</option>
+                                    <option value="font-mono-tech">Share Tech Mono</option>
+                                    <option value="font-montserrat">Montserrat</option>
+                                    <option value="font-inter">Inter</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[9px] text-slate-400 block mb-1">Tamaño título</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="range" id="prop-title-size-slider" min="6" max="48"
+                                            oninput="updateElementProp('titleFontSize', parseInt(this.value) || 10)"
+                                            class="flex-1 accent-cyan-500">
+                                        <input type="number" id="prop-title-size" min="6" max="48"
+                                            oninput="updateElementProp('titleFontSize', parseInt(this.value) || 10)"
+                                            class="w-14 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[9px] text-slate-400 block mb-1">Color título</label>
+                                    <div class="flex items-center gap-1.5">
+                                        <input type="color" id="prop-title-color"
+                                            onchange="updateElementProp('titleColor', this.value)"
+                                            class="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                                        <input type="text" id="prop-title-color-hex"
+                                            oninput="updateElementProp('titleColor', this.value)"
+                                            class="w-full bg-slate-950 border border-slate-800 rounded px-1.5 py-1.5 text-[10px] text-center font-mono">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Propiedades específicas de estado OK / KO -->
+                    <div id="prop-status-container" class="space-y-2 hidden border-t border-slate-800/80 pt-3">
+                        <label class="text-[10px] text-blue-300 font-bold block uppercase">Estados OK / KO</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Texto OK</label>
+                                <input type="text" id="prop-status-ok-text"
+                                    oninput="updateElementProp('statusOkText', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Texto KO</label>
+                                <input type="text" id="prop-status-ko-text"
+                                    oninput="updateElementProp('statusKoText', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Color OK</label>
+                                <input type="color" id="prop-status-ok-color"
+                                    onchange="updateElementProp('statusOkColor', this.value)"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Color KO</label>
+                                <input type="color" id="prop-status-ko-color"
+                                    onchange="updateElementProp('statusKoColor', this.value)"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Vista</label>
+                                <select id="prop-status-preview" onchange="updateElementProp('statusPreview', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs">
+                                    <option value="ok">OK</option>
+                                    <option value="ko">KO</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Propiedades específicas de Barras de Progreso -->
+                    <div id="prop-progress-container" class="space-y-2 hidden border-t border-slate-800/80 pt-2">
+                        <label class="text-[10px] text-emerald-400 font-bold block">Configuración de Progreso</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block">Tipo Vinculado</label>
+                                <select id="prop-progress-type" onchange="updateElementProp('progressType', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs">
+                                    <option value="battery">🔋 Batería</option>
+                                    <option value="steps">👣 Pasos Diarios</option>
+                                    <option value="heart">❤️ Ritmo Cardíaco</option>
+                                    <option value="calories">🔥 Calorías</option>
+                                    <option value="distance">📍 Distancia</option>
+                                    <option value="sleep">🌙 Sueño</option>
+                                    <option value="stress">⚡ Estrés</option>
+                                    <option value="spo2">💧 SpO2</option>
+                                    <option value="pai">◎ PAI</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block">Valor Actual (%)</label>
+                                <input type="number" id="prop-progress-val" min="0" max="100"
+                                    oninput="updateElementProp('progressValue', parseInt(this.value) || 0)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs font-mono">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block">Grosor de Barra (px)</label>
+                                <input type="number" id="prop-progress-thickness" min="2" max="30"
+                                    oninput="updateElementProp('progressThickness', parseInt(this.value) || 6)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block">Color de Fondo Barra</label>
+                                <input type="color" id="prop-progress-bg"
+                                    onchange="updateElementProp('progressBgColor', this.value)"
+                                    class="w-full h-8 rounded border border-slate-700 bg-transparent cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Propiedades específicas de Imagen/Icono -->
+                    <div id="prop-image-container" class="space-y-2 hidden border-t border-slate-800/80 pt-2">
+                        <label class="text-[10px] text-amber-400 font-bold block">Ajustes de Imagen / Icono</label>
+                        <div>
+                            <label class="text-[9px] text-slate-400 block mb-1">Elegir un Preset rápido</label>
+                            <div class="grid grid-cols-4 gap-1.5">
+                                <button onclick="selectPresetIcon('❤️')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">❤️</button>
+                                <button onclick="selectPresetIcon('🔋')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">🔋</button>
+                                <button onclick="selectPresetIcon('👣')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">👣</button>
+                                <button onclick="selectPresetIcon('☀️')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">☀️</button>
+                                <button onclick="selectPresetIcon('⛈️')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">⛈️</button>
+                                <button onclick="selectPresetIcon('⚡')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">⚡</button>
+                                <button onclick="selectPresetIcon('⭐')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">⭐</button>
+                                <button onclick="selectPresetIcon('🔥')"
+                                    class="p-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-800 text-sm">🔥</button>
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-800/50 pt-2">
+                            <label class="text-[9px] text-slate-400 block mb-1">O subir Imagen propia (PNG
+                                transparente)</label>
+                            <input type="file" id="prop-upload-custom-image" accept="image/*"
+                                onchange="handleElementImageUpload(event)"
+                                class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+                        </div>
+                    </div>
+
+                    <!-- Opacidad & Alineación -->
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-1">Opacidad</label>
+                            <input type="range" id="prop-opacity" min="10" max="100" value="100"
+                                oninput="updateElementProp('opacity', parseInt(this.value) / 100)"
+                                class="w-full accent-cyan-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-semibold block mb-1">Alineación</label>
+                            <div class="grid grid-cols-3 gap-0.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                                <button onclick="updateElementProp('textAlign', 'left')" id="align-left"
+                                    class="py-1 text-xs rounded text-slate-400"><i data-lucide="align-left"
+                                        class="w-3 h-3 mx-auto"></i></button>
+                                <button onclick="updateElementProp('textAlign', 'center')" id="align-center"
+                                    class="py-1 text-xs rounded text-slate-400"><i data-lucide="align-center"
+                                        class="w-3 h-3 mx-auto"></i></button>
+                                <button onclick="updateElementProp('textAlign', 'right')" id="align-right"
+                                    class="py-1 text-xs rounded text-slate-400"><i data-lucide="align-right"
+                                        class="w-3 h-3 mx-auto"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Previsualización de Código Real Zepp OS -->
+            <div
+                class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm flex flex-col min-h-[220px]">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase flex items-center gap-1.5">
+                        <i data-lucide="code-2" class="w-4 h-4 text-emerald-400"></i> Código Real Zepp OS JS (SDK v2/v3)
+                    </h3>
+                    <button onclick="copyCode()"
+                        class="text-slate-400 hover:text-white transition text-xs flex items-center gap-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Código
+                    </button>
+                </div>
+                <div
+                    class="flex-1 bg-slate-950 rounded-xl p-3 border border-slate-800/80 overflow-y-auto max-h-[180px]">
+                    <pre class="text-[10px] font-mono text-emerald-400/90 leading-relaxed"
+                        id="zepp-code-box">// Diseña y añade widgets para compilar...</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- PANEL DERECHO: Simulador de Reloj e Interfaz Visual (lg:col-span-6) -->
+        <section
+            class="lg:col-span-6 flex flex-col items-center justify-start bg-slate-900/20 border border-slate-800/40 rounded-3xl p-6 relative lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-hidden">
+
+            <!-- Indicador superior -->
+            <div class="w-full flex justify-between items-center mb-4">
+                <span class="text-xs font-bold text-slate-400 flex items-center gap-1">
+                    <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block animate-ping"></span>
+                    SIMULADOR DE PANTALLA
+                </span>
+                <span class="text-[10px] font-mono bg-slate-800 px-2 py-0.5 rounded text-cyan-400">
+                    Resolución: <span id="watch-resolution-label">466 x 466 px</span>
+                </span>
+            </div>
+
+            <!-- Contenedor del Reloj inteligente físico -->
+            <div id="watch-shell"
+                class="relative p-8 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 rounded-[58px] shadow-2xl border-[5px] border-slate-700/60 max-w-full flex justify-center items-center my-auto">
+                <!-- Botón de corona física simetrizada en el lado derecho -->
+                <div
+                    class="absolute right-[-5px] top-1/2 -translate-y-1/2 w-2.5 h-12 bg-slate-600 rounded-r-lg border border-slate-500 shadow">
+                </div>
+
+                <!-- Marco interior de pantalla -->
+                <div id="watch-inner-frame" class="relative bg-slate-950 p-2 rounded-[44px] border-2 border-slate-950 shadow-inner">
+                    <!-- Pantalla / Canvas interactivo Amazfit Active -->
+                    <div id="watch-screen"
+                        class="w-[312px] h-[360px] relative overflow-hidden rounded-[38px] bg-black select-none shadow-2xl"
+                        style="background-color: #020617;">
+
+                        <!-- Capa de Elementos Diseñados -->
+                        <div id="canvas-elements" class="absolute inset-0 w-full h-full"></div>
+
+                        <!-- Guías de alineación y snapping -->
+                        <div id="grid-overlay" class="guide-layer absolute inset-0 pointer-events-none hidden"></div>
+                        <div id="guide-safe-circle" class="guide-layer absolute inset-[7%] pointer-events-none hidden"></div>
+                        <div class="guide-layer guide-center-x absolute top-0 bottom-0 left-1/2 pointer-events-none hidden"></div>
+                        <div class="guide-layer guide-center-y absolute left-0 right-0 top-1/2 pointer-events-none hidden"></div>
+                        <div class="guide-layer guide-third-x guide-third-x-1 absolute top-0 bottom-0 pointer-events-none hidden"></div>
+                        <div class="guide-layer guide-third-x guide-third-x-2 absolute top-0 bottom-0 pointer-events-none hidden"></div>
+                        <div class="guide-layer guide-third-y guide-third-y-1 absolute left-0 right-0 pointer-events-none hidden"></div>
+                        <div class="guide-layer guide-third-y guide-third-y-2 absolute left-0 right-0 pointer-events-none hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Utilidades del Canvas situadas abajo -->
+            <div class="w-full flex flex-wrap gap-2.5 justify-center mt-6">
+                <button onclick="toggleGrid()"
+                    class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow">
+                    <i data-lucide="grid-3x3" class="w-4 h-4"></i> Guías Visuales
+                </button>
+                <button onclick="clearCanvas()"
+                    class="px-3.5 py-2 bg-red-950/30 hover:bg-red-950/60 text-red-400 text-xs font-semibold rounded-lg transition border border-red-900/40 flex items-center gap-1.5 shadow">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Limpiar Todo
+                </button>
+                <button onclick="exportAsImage()"
+                    class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-indigo-500/20 transition flex items-center gap-1.5">
+                    <i data-lucide="image" class="w-4 h-4"></i> Descargar Imagen PNG
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de instalación -->
+    <div id="install-modal"
+        class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
+        <div class="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+                <div>
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i data-lucide="watch" class="w-4 h-4 text-cyan-300"></i> Cómo instalar la esfera
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Guía rápida para usar lo exportado desde este editor.</p>
+                </div>
+                <button onclick="closeInstallModal()"
+                    class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 text-sm text-slate-300">
+                <div class="grid md:grid-cols-3 gap-3">
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                        <div class="text-cyan-300 text-xs font-bold uppercase mb-1">1. Exporta</div>
+                        <p class="text-xs leading-relaxed">Pulsa exportar para descargar un ZIP con `app.json`, `app.js`,
+                            `watchface/index.js` y assets mínimos.</p>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                        <div class="text-cyan-300 text-xs font-bold uppercase mb-1">2. Crea el proyecto</div>
+                        <p class="text-xs leading-relaxed">Descomprime el ZIP, entra en la carpeta del proyecto y ejecuta
+                            `zeus build -t default`.</p>
+                    </div>
+                    <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                        <div class="text-cyan-300 text-xs font-bold uppercase mb-1">3. Sincroniza</div>
+                        <p class="text-xs leading-relaxed">El `.zab` aparecerá en `dist/`; después puedes probarlo o
+                            instalarlo desde las herramientas de Zepp.</p>
+                    </div>
+                </div>
+                <div class="bg-amber-950/20 border border-amber-800/40 rounded-xl p-3 text-xs text-amber-100">
+                    El ZIP exportado es un proyecto para compilar. Dentro también va `amazfit-editor-design.json` para
+                    reabrir el diseño en este editor si necesitas seguir modificándolo.
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="closeInstallModal()"
+                        class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg transition">Entendido</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>

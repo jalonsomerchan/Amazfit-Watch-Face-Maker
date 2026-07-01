@@ -1,0 +1,279 @@
+@font-face {
+    font-family: 'Bebas Neue';
+    src: url('../assets/fonts/bebas-neue-400.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Chakra Petch';
+    src: url('../assets/fonts/chakra-petch-500.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Chakra Petch';
+    src: url('../assets/fonts/chakra-petch-700.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('../assets/fonts/inter-400.ttf') format('truetype');
+    font-weight: 400 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Montserrat';
+    src: url('../assets/fonts/montserrat-400.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Montserrat';
+    src: url('../assets/fonts/montserrat-700.ttf') format('truetype');
+    font-weight: 700 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('../assets/fonts/orbitron-400.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Orbitron';
+    src: url('../assets/fonts/orbitron-700.ttf') format('truetype');
+    font-weight: 700 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('../assets/fonts/rajdhani-600.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('../assets/fonts/rajdhani-700.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Share Tech Mono';
+    src: url('../assets/fonts/share-tech-mono-400.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Teko';
+    src: url('../assets/fonts/teko-500.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Teko';
+    src: url('../assets/fonts/teko-700.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+.font-orbitron {
+    font-family: 'Orbitron', sans-serif;
+}
+
+.font-mono-tech {
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.font-inter {
+    font-family: 'Inter', sans-serif;
+}
+
+.font-bebas {
+    font-family: 'Bebas Neue', sans-serif;
+}
+
+.font-chakra {
+    font-family: 'Chakra Petch', sans-serif;
+}
+
+.font-montserrat {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.font-rajdhani {
+    font-family: 'Rajdhani', sans-serif;
+}
+
+.font-teko {
+    font-family: 'Teko', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
+
+.widget-toolbar {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 #020617;
+}
+
+.widget-tool {
+    min-width: 74px;
+    height: 48px;
+    padding: 8px 10px;
+    border: 1px solid rgba(30, 41, 59, 0.9);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #cbd5e1;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.widget-tool:hover {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(71, 85, 105, 0.95);
+    transform: translateY(-1px);
+}
+
+.widget-tool-accent {
+    background: rgba(49, 46, 129, 0.28);
+    border-color: rgba(67, 56, 202, 0.55);
+}
+
+.element-resize-handle {
+    position: absolute;
+    right: -9px;
+    bottom: -9px;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #020617;
+    border-radius: 50%;
+    background: #22d3ee;
+    box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.7), 0 6px 14px rgba(8, 47, 73, 0.45);
+    cursor: nwse-resize;
+    touch-action: none;
+    z-index: 40;
+}
+
+.element-resize-handle::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid #083344;
+    border-bottom: 2px solid #083344;
+}
+
+#grid-overlay {
+    background-image:
+        linear-gradient(rgba(103, 232, 249, 0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(103, 232, 249, 0.18) 1px, transparent 1px),
+        linear-gradient(rgba(34, 211, 238, 0.28) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 211, 238, 0.28) 1px, transparent 1px);
+    background-size:
+        var(--grid-small, 7px) var(--grid-small, 7px),
+        var(--grid-small, 7px) var(--grid-small, 7px),
+        var(--grid-large, 35px) var(--grid-large, 35px),
+        var(--grid-large, 35px) var(--grid-large, 35px);
+}
+
+.guide-center-x,
+.guide-center-y {
+    border-color: rgba(34, 211, 238, 0.62);
+}
+
+.guide-center-x {
+    border-left: 1px dashed currentColor;
+    color: rgba(34, 211, 238, 0.62);
+}
+
+.guide-center-y {
+    border-top: 1px dashed currentColor;
+    color: rgba(34, 211, 238, 0.62);
+}
+
+.guide-third-x,
+.guide-third-y {
+    color: rgba(167, 139, 250, 0.42);
+}
+
+.guide-third-x {
+    border-left: 1px dashed currentColor;
+}
+
+.guide-third-y {
+    border-top: 1px dashed currentColor;
+}
+
+.guide-third-x-1 {
+    left: 33.333%;
+}
+
+.guide-third-x-2 {
+    left: 66.666%;
+}
+
+.guide-third-y-1 {
+    top: 33.333%;
+}
+
+.guide-third-y-2 {
+    top: 66.666%;
+}
+
+#guide-safe-circle {
+    border: 1px dashed rgba(251, 191, 36, 0.45);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.12);
+}
