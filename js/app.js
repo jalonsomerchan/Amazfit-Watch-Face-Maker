@@ -472,6 +472,51 @@ function isShapeWidget(type) {
     return type === 'circle' || type === 'stroke-rect';
 }
 
+function hasAutoContentHeight(element) {
+    return element && !isShapeWidget(element.type);
+}
+
+function getTitleContentHeight(element) {
+    if (!element || !element.titleEnabled || !supportsOptionalTitle(element.type)) return 0;
+    return getMeasuredTextHeight(element.titleText || '', element.titleFontFamily || 'font-rajdhani', element.titleFontSize || 10, 'bold') + 2;
+}
+
+function getTextContentHeight(element) {
+    const fontWeight = ['font-bebas', 'font-orbitron', 'font-chakra', 'font-montserrat', 'font-rajdhani'].includes(element.fontFamily) ? 'bold' : '';
+    return getMeasuredTextHeight(getElementDisplayText(element), element.fontFamily || 'font-inter', element.fontSize || 14, fontWeight);
+}
+
+function getMeasuredTextHeight(text, fontClass, size, weight = '') {
+    if (!String(text || '').length) return 0;
+    return Math.max(1, Math.ceil(size || 14));
+}
+
+function getAutoContentHeight(element) {
+    if (!hasAutoContentHeight(element)) return Math.max(1, Math.round(element.height || 1));
+
+    const titleHeight = getTitleContentHeight(element);
+    let contentHeight = getTextContentHeight(element);
+
+    if (element.type === 'progress-bar') {
+        contentHeight = 12 + Math.max(2, Math.ceil(element.progressThickness || 6));
+    } else if (element.type === 'arc-progress') {
+        contentHeight = Math.max(1, Math.round(element.width || 1));
+    } else if (element.type === 'chart') {
+        contentHeight = Math.max(24, Math.ceil((element.fontSize || 14) * 1.6));
+    } else if (element.type === 'image') {
+        contentHeight = Math.max(1, Math.round(element.width || 45));
+    }
+
+    return Math.max(1, Math.ceil(titleHeight + contentHeight));
+}
+
+function fitElementHeightToContent(element) {
+    if (!hasAutoContentHeight(element)) return element.height;
+    element.height = Math.min(getCanvasHeight() - element.y, getAutoContentHeight(element));
+    if (element.height < 1) element.height = 1;
+    return element.height;
+}
+
 function canRenderElementAsImage(element) {
     return element && !['progress-bar', 'arc-progress', 'circle', 'stroke-rect', 'chart', 'image'].includes(element.type);
 }
@@ -524,6 +569,7 @@ function normalizeElement(element) {
     ensureDateDefaults(element);
     ensureTimeDefaults(element);
     ensureMetricAffixDefaults(element);
+    fitElementHeightToContent(element);
     return element;
 }
 
@@ -900,6 +946,17 @@ window.addEventListener('DOMContentLoaded', () => {
     installModal.addEventListener('click', (event) => {
         if (event.target === installModal) closeInstallModal();
     });
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+            elements.forEach(normalizeElement);
+            renderCanvas();
+            if (selectedElementId) {
+                const selected = elements.find(el => el.id === selectedElementId);
+                if (selected) document.getElementById('prop-h').value = selected.height;
+            }
+        });
+    }
 });
 
 window.addEventListener('beforeunload', () => {
@@ -1252,6 +1309,7 @@ function stopDrag() {
     document.removeEventListener('mouseup', stopDrag);
     document.removeEventListener('touchend', stopDrag);
     generateZeppCode();
+    scheduleDesignAutosave();
 }
 
 function startResize(e, id) {
@@ -1314,7 +1372,11 @@ function resizeElement(e) {
     const minHeight = isProgressWidget(element.type) ? 18 : 16;
 
     element.width = Math.max(minWidth, Math.min(getCanvasWidth() - element.x, snapToGrid(resizeState.width + deltaX)));
-    element.height = Math.max(minHeight, Math.min(getCanvasHeight() - element.y, snapToGrid(resizeState.height + deltaY)));
+    if (hasAutoContentHeight(element)) {
+        fitElementHeightToContent(element);
+    } else {
+        element.height = Math.max(minHeight, Math.min(getCanvasHeight() - element.y, snapToGrid(resizeState.height + deltaY)));
+    }
 
     document.getElementById('prop-w').value = element.width;
     document.getElementById('prop-h').value = element.height;
@@ -1385,6 +1447,10 @@ function selectElement(id) {
     document.getElementById('prop-y').value = element.y;
     document.getElementById('prop-w').value = element.width;
     document.getElementById('prop-h').value = element.height;
+    document.getElementById('prop-h').disabled = hasAutoContentHeight(element);
+    document.getElementById('prop-h').title = hasAutoContentHeight(element)
+        ? 'El alto se ajusta automáticamente al contenido'
+        : 'Alto del elemento';
     document.getElementById('prop-font').value = element.fontFamily || 'font-inter';
     document.getElementById('prop-size').value = element.fontSize || 14;
     document.getElementById('prop-size-slider').value = element.fontSize || 14;
@@ -1572,6 +1638,7 @@ function updateElementProp(key, value) {
     }
 
     normalizeElement(element);
+    document.getElementById('prop-h').value = element.height;
     renderCanvas();
 }
 
@@ -1919,7 +1986,7 @@ async function createElementImageDataUrl(el) {
         ctx.fillStyle = el.titleColor || '#94a3b8';
         ctx.font = getCanvasFont(el.titleFontFamily || 'font-rajdhani', el.titleFontSize || 10, 'bold');
         ctx.fillText(el.titleText || '', xPos, y);
-        y += (el.titleFontSize || 10) + 2;
+        y += getTitleContentHeight(el);
     }
 
     ctx.fillStyle = getElementDisplayColor(el);
@@ -2121,7 +2188,7 @@ async function exportAsImage() {
             normalizeElement(el);
             ctx.save();
             ctx.globalAlpha = el.opacity;
-            const titleOffset = el.titleEnabled ? (el.titleFontSize || 10) + 2 : 0;
+            const titleOffset = getTitleContentHeight(el);
             const contentY = el.y + titleOffset;
             const drawTitle = () => {
                 if (!el.titleEnabled) return;
@@ -2643,7 +2710,7 @@ function generateZeppCode() {
         let zeppAlign = 'align.CENTER_H';
         if (el.textAlign === 'left') zeppAlign = 'align.LEFT';
         if (el.textAlign === 'right') zeppAlign = 'align.RIGHT';
-        const titleOffset = el.titleEnabled ? (el.titleFontSize || 10) + 2 : 0;
+        const titleOffset = getTitleContentHeight(el);
         const contentY = el.y + titleOffset;
         const contentHeight = Math.max(1, el.height - titleOffset);
         const contentFontPath = getZeppFontPath(el.fontFamily || 'font-inter');
