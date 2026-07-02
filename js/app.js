@@ -10,8 +10,11 @@ let showGuides = false;
 const GRID_SIZE = 10;
 const STORAGE_KEYS = {
     watchModel: 'amazfit-editor:last-watch-model',
-    watchShape: 'amazfit-editor:last-watch-shape'
+    watchShape: 'amazfit-editor:last-watch-shape',
+    autosavedDesign: 'amazfit-editor:autosaved-design:v1'
 };
+let autosaveTimer = null;
+let autosaveEnabled = false;
 
 // Configuración real del lienzo (390 x 450)
 let watchConfig = {
@@ -92,6 +95,12 @@ const DYNAMIC_METRIC_TYPES = [
     'minute',
     'second',
     'date',
+    'day',
+    'month',
+    'year',
+    'weekday',
+    'day-of-year',
+    'week',
     'steps',
     'calories',
     'distance',
@@ -120,6 +129,12 @@ const metricDefaults = {
     minute: { text: '09', color: '#38bdf8', fontSize: 68, fontFamily: 'font-teko' },
     second: { text: '42', color: '#94a3b8', fontSize: 28, fontFamily: 'font-orbitron' },
     date: { text: 'MIE, 30 JUN', color: '#34d399', fontSize: 18, fontFamily: 'font-rajdhani', dateFormat: 'weekday-day-month-short' },
+    day: { text: '30', color: '#34d399', fontSize: 42, fontFamily: 'font-teko', dateFormat: 'day-padded' },
+    month: { text: 'JUN', color: '#34d399', fontSize: 28, fontFamily: 'font-rajdhani', dateFormat: 'month-short' },
+    year: { text: '2026', color: '#34d399', fontSize: 24, fontFamily: 'font-orbitron', dateFormat: 'year-full' },
+    weekday: { text: 'MIE', color: '#34d399', fontSize: 24, fontFamily: 'font-rajdhani', dateFormat: 'weekday-short' },
+    'day-of-year': { text: '181', color: '#34d399', fontSize: 24, fontFamily: 'font-chakra', dateFormat: 'day-of-year' },
+    week: { text: '27', color: '#34d399', fontSize: 24, fontFamily: 'font-chakra', dateFormat: 'iso-week' },
     steps: { text: '5420', color: '#fbbf24', fontSize: 24, fontFamily: 'font-chakra' },
     calories: { text: '420', color: '#fb923c', fontSize: 22, fontFamily: 'font-chakra' },
     distance: { text: '4.8', color: '#a3e635', fontSize: 22, fontFamily: 'font-chakra' },
@@ -187,7 +202,21 @@ const dateFormatLabels = {
     'day-month-numeric': '30/06',
     'day-month-year-numeric': '30/06/2026',
     'iso': '2026-06-30',
-    'month-day': 'JUN 30'
+    'month-day': 'JUN 30',
+    'day-padded': '30',
+    'day-number': '30',
+    'month-number-padded': '06',
+    'month-number': '6',
+    'month-short': 'JUN',
+    'month-long': 'JUNIO',
+    'year-full': '2026',
+    'year-short': '26',
+    'weekday-short': 'MIE',
+    'weekday-long': 'MIERCOLES',
+    'day-of-year': '181',
+    'day-of-year-padded': '181',
+    'iso-week': '27',
+    'week-padded': '27'
 };
 
 const timeFormatLabels = {
@@ -253,14 +282,28 @@ function getDateParts(date) {
     const weekdaysLong = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
     const monthsShort = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
     const monthsLong = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - startOfYear) / 86400000) + 1;
+    const isoDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const isoDay = isoDate.getUTCDay() || 7;
+    isoDate.setUTCDate(isoDate.getUTCDate() + 4 - isoDay);
+    const isoYearStart = new Date(Date.UTC(isoDate.getUTCFullYear(), 0, 1));
+    const isoWeek = Math.ceil((((isoDate - isoYearStart) / 86400000) + 1) / 7);
     return {
         day: pad2(date.getDate()),
+        dayNumber: String(date.getDate()),
         month: pad2(date.getMonth() + 1),
+        monthNumber: String(date.getMonth() + 1),
         year: String(date.getFullYear()),
+        yearShort: String(date.getFullYear()).slice(-2),
         weekdayShort: weekdaysShort[date.getDay()],
         weekdayLong: weekdaysLong[date.getDay()],
         monthShort: monthsShort[date.getMonth()],
-        monthLong: monthsLong[date.getMonth()]
+        monthLong: monthsLong[date.getMonth()],
+        dayOfYear: String(dayOfYear),
+        dayOfYearPadded: String(dayOfYear).padStart(3, '0'),
+        isoWeek: String(isoWeek),
+        isoWeekPadded: pad2(isoWeek)
     };
 }
 
@@ -281,6 +324,34 @@ function formatDateForDisplay(format, date = new Date()) {
             return `${parts.year}-${parts.month}-${parts.day}`;
         case 'month-day':
             return `${parts.monthShort} ${parts.day}`;
+        case 'day-padded':
+            return parts.day;
+        case 'day-number':
+            return parts.dayNumber;
+        case 'month-number-padded':
+            return parts.month;
+        case 'month-number':
+            return parts.monthNumber;
+        case 'month-short':
+            return parts.monthShort;
+        case 'month-long':
+            return parts.monthLong;
+        case 'year-full':
+            return parts.year;
+        case 'year-short':
+            return parts.yearShort;
+        case 'weekday-short':
+            return parts.weekdayShort;
+        case 'weekday-long':
+            return parts.weekdayLong;
+        case 'day-of-year':
+            return parts.dayOfYear;
+        case 'day-of-year-padded':
+            return parts.dayOfYearPadded;
+        case 'iso-week':
+            return parts.isoWeek;
+        case 'week-padded':
+            return parts.isoWeekPadded;
         case 'weekday-day-month-short':
         default:
             return `${parts.weekdayShort}, ${parts.day} ${parts.monthShort}`;
@@ -325,6 +396,10 @@ function isDynamicMetricType(type) {
     return DYNAMIC_METRIC_TYPES.includes(type);
 }
 
+function isCalendarMetricType(type) {
+    return ['date', 'day', 'month', 'year', 'weekday', 'day-of-year', 'week'].includes(type);
+}
+
 function getMetricLabel(type) {
     const labels = {
         battery: 'BATERÍA',
@@ -335,7 +410,14 @@ function getMetricLabel(type) {
         sleep: 'SUEÑO',
         stress: 'ESTRÉS',
         spo2: 'SPO2',
-        pai: 'PAI'
+        pai: 'PAI',
+        date: 'FECHA',
+        day: 'DÍA',
+        month: 'MES',
+        year: 'AÑO',
+        weekday: 'DÍA SEM.',
+        'day-of-year': 'DÍA AÑO',
+        week: 'SEMANA'
     };
     return labels[type] || String(type || 'DATO').toUpperCase();
 }
@@ -364,9 +446,10 @@ function ensureStatusDefaults(element) {
 }
 
 function ensureDateDefaults(element) {
-    if (element.type !== 'date') return;
-    if (!element.dateFormat) element.dateFormat = 'weekday-day-month-short';
-    element.text = dateFormatLabels[element.dateFormat] || dateFormatLabels['weekday-day-month-short'];
+    if (!isCalendarMetricType(element.type)) return;
+    const defaults = metricDefaults[element.type] || metricDefaults.date;
+    if (!element.dateFormat) element.dateFormat = defaults.dateFormat || 'weekday-day-month-short';
+    element.text = dateFormatLabels[element.dateFormat] || formatDateForDisplay(element.dateFormat);
 }
 
 function ensureTimeDefaults(element) {
@@ -417,7 +500,7 @@ function getElementDisplayText(element) {
             : (element.statusOkText || 'BT OK');
         return applyMetricAffixes(element, value);
     }
-    if (element.type === 'date') {
+    if (isCalendarMetricType(element.type)) {
         return applyMetricAffixes(element, formatDateForDisplay(element.dateFormat || 'weekday-day-month-short'));
     }
     return applyMetricAffixes(element, element.text || '');
@@ -544,7 +627,6 @@ function disableCopyStyleButton() {
 
 function copyStyle(source, target) {
     const commonStyleProps = [
-        'color',
         'fontSize',
         'fontFamily',
         'opacity',
@@ -559,7 +641,6 @@ function copyStyle(source, target) {
     if (supportsOptionalTitle(target.type)) {
         [
             'titleEnabled',
-            'titleText',
             'titleFontFamily',
             'titleFontSize',
             'titleColor'
@@ -572,16 +653,6 @@ function copyStyle(source, target) {
         ['progressThickness', 'progressBgColor'].forEach((prop) => {
             if (source[prop] !== undefined) target[prop] = source[prop];
         });
-    }
-
-    if (target.type === 'bluetooth') {
-        if (source.statusOkColor || source.statusKoColor) {
-            target.statusOkColor = source.statusOkColor || target.statusOkColor;
-            target.statusKoColor = source.statusKoColor || target.statusKoColor;
-        } else if (source.color) {
-            target.statusOkColor = source.color;
-            target.statusKoColor = source.color;
-        }
     }
 }
 
@@ -611,6 +682,73 @@ function saveWatchPreference(key, value) {
     try {
         localStorage.setItem(key, value);
     } catch (err) {}
+}
+
+function getNormalizedDesignConfig(config) {
+    const savedWatchConfig = config && config.watchConfig ? config.watchConfig : {};
+    const savedModelKey = watchModels[savedWatchConfig.model] ? savedWatchConfig.model : 'active3premium';
+    const savedModel = watchModels[savedModelKey] || watchModels.active3premium;
+    return {
+        watchConfig: {
+            ...watchConfig,
+            ...savedWatchConfig,
+            model: savedModelKey,
+            modelName: savedWatchConfig.modelName || savedModel.name,
+            width: savedWatchConfig.width || savedModel.width,
+            height: savedWatchConfig.height || savedModel.height,
+            shape: savedWatchConfig.shape || savedModel.shape || 'square'
+        },
+        elements: Array.isArray(config?.elements) ? config.elements.map(normalizeElement) : []
+    };
+}
+
+function saveCurrentDesignNow() {
+    if (!autosaveEnabled) return;
+    try {
+        localStorage.setItem(STORAGE_KEYS.autosavedDesign, JSON.stringify(getDesignConfig()));
+    } catch (err) {
+        console.warn('No se pudo guardar el diseño en localStorage.', err);
+    }
+}
+
+function scheduleDesignAutosave() {
+    if (!autosaveEnabled) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(saveCurrentDesignNow, 200);
+}
+
+function loadAutosavedDesign() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.autosavedDesign);
+        if (!saved) return false;
+        const parsed = JSON.parse(saved);
+        if (!parsed || !parsed.watchConfig || !Array.isArray(parsed.elements)) return false;
+        const normalized = getNormalizedDesignConfig(parsed);
+        watchConfig = normalized.watchConfig;
+        elements = normalized.elements;
+        selectedElementId = null;
+        resetStyleCopyMode();
+        saveWatchPreference(STORAGE_KEYS.watchModel, watchConfig.model);
+        saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
+        return true;
+    } catch (err) {
+        console.warn('No se pudo cargar el diseño guardado.', err);
+        return false;
+    }
+}
+
+function applyBackgroundControlsFromConfig() {
+    const bgColor = document.getElementById('bg-color');
+    const bgColorHex = document.getElementById('bg-color-hex');
+    const gradStart = document.getElementById('bg-grad-start');
+    const gradEnd = document.getElementById('bg-grad-end');
+    const gradAngle = document.getElementById('bg-grad-angle');
+
+    if (bgColor) bgColor.value = watchConfig.bgColor || '#020617';
+    if (bgColorHex) bgColorHex.value = watchConfig.bgColor || '#020617';
+    if (gradStart) gradStart.value = watchConfig.bgGradStart || '#0d1527';
+    if (gradEnd) gradEnd.value = watchConfig.bgGradEnd || '#020617';
+    if (gradAngle) gradAngle.value = watchConfig.bgGradAngle || '135';
 }
 
 function applyWatchModelConfig(modelKey, options = {}) {
@@ -682,6 +820,7 @@ function changeWatchModel(modelKey) {
     const model = applyWatchModelConfig(modelKey, { persist: true });
     updateWatchViewport();
     renderCanvas();
+    scheduleDesignAutosave();
     showNotification(`${model.name}: ${model.width} x ${model.height}px`, 'success');
 }
 
@@ -689,6 +828,7 @@ function changeWatchShape(shape) {
     watchConfig.shape = shape === 'round' ? 'round' : 'square';
     saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
     applyWatchShape();
+    scheduleDesignAutosave();
     showNotification(watchConfig.shape === 'round' ? "Preview redondo activado" : "Preview cuadrado activado", "success");
 }
 
@@ -741,15 +881,29 @@ const templates = {
 // --- INICIALIZACIÓN ---
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
-    restoreSavedWatchConfig();
+    const hasAutosavedDesign = loadAutosavedDesign();
+    if (!hasAutosavedDesign) restoreSavedWatchConfig();
     updateWatchViewport();
-    applyTemplate('sport'); // Carga deportiva por defecto
+    if (hasAutosavedDesign) {
+        applyBackgroundControlsFromConfig();
+        changeBgType(watchConfig.bgType || 'gradient');
+        renderCanvas();
+        selectElement(null);
+    } else {
+        applyTemplate('sport'); // Carga deportiva por defecto
+    }
     updateBgSettings();
+    autosaveEnabled = true;
+    saveCurrentDesignNow();
 
     const installModal = document.getElementById('install-modal');
     installModal.addEventListener('click', (event) => {
         if (event.target === installModal) closeInstallModal();
     });
+});
+
+window.addEventListener('beforeunload', () => {
+    saveCurrentDesignNow();
 });
 
 window.addEventListener('keydown', (event) => {
@@ -823,6 +977,12 @@ function addElement(type) {
         case 'minute':
         case 'second':
         case 'date':
+        case 'day':
+        case 'month':
+        case 'year':
+        case 'weekday':
+        case 'day-of-year':
+        case 'week':
         case 'steps':
         case 'calories':
         case 'distance':
@@ -1033,6 +1193,7 @@ function renderCanvas() {
     });
 
     generateZeppCode();
+    scheduleDesignAutosave();
 }
 
 // --- ARRASTRE DE ELEMENTOS (DRAG & DROP) ---
@@ -1283,9 +1444,9 @@ function selectElement(id) {
         document.getElementById('prop-suffix').value = element.metricSuffix || '';
     }
 
-    if (element.type === 'date') {
+    if (isCalendarMetricType(element.type)) {
         dateFormatContainer.classList.remove('hidden');
-        document.getElementById('prop-date-format').value = element.dateFormat || 'weekday-day-month-short';
+        document.getElementById('prop-date-format').value = element.dateFormat || metricDefaults[element.type]?.dateFormat || 'weekday-day-month-short';
         document.getElementById('prop-text').value = getElementDisplayText(element);
     }
 
@@ -1520,6 +1681,7 @@ function updateBgSettings() {
         }
     }
     generateZeppCode();
+    scheduleDesignAutosave();
 }
 
 function updateBgSettingsFromText(type) {
@@ -2159,8 +2321,8 @@ function getGeneratedTextExpression(el) {
     if (el.type === 'bluetooth') {
         return wrapGeneratedMetricText(el, `getMetricText('bluetooth', '${escapeGeneratedText(getElementDisplayText(el))}', { okText: '${escapeGeneratedText(el.statusOkText || 'BT OK')}', koText: '${escapeGeneratedText(el.statusKoText || 'BT KO')}' })`);
     }
-    if (el.type === 'date') {
-        return wrapGeneratedMetricText(el, `getMetricText('date', '${escapeGeneratedText(getElementDisplayText(el))}', { dateFormat: '${escapeGeneratedText(el.dateFormat || 'weekday-day-month-short')}' })`);
+    if (isCalendarMetricType(el.type)) {
+        return wrapGeneratedMetricText(el, `getMetricText('${el.type}', '${escapeGeneratedText(getElementDisplayText(el))}', { dateFormat: '${escapeGeneratedText(el.dateFormat || metricDefaults[el.type]?.dateFormat || 'weekday-day-month-short')}' })`);
     }
     if (isDynamicMetricType(el.type)) return wrapGeneratedMetricText(el, `getMetricText('${el.type}', '${escapeGeneratedText(el.text)}')`);
     return `'${escapeGeneratedText(el.text)}'`;
@@ -2283,6 +2445,13 @@ function generateZeppCode() {
     jsCode += `  const weekdaysLong = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']\n`;
     jsCode += `  const monthsShort = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']\n`;
     jsCode += `  const monthsLong = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']\n`;
+    jsCode += `  const startOfYear = new Date(date.getFullYear(), 0, 1)\n`;
+    jsCode += `  const dayOfYear = Math.floor((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - startOfYear) / 86400000) + 1\n`;
+    jsCode += `  const isoDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))\n`;
+    jsCode += `  const isoDay = isoDate.getUTCDay() || 7\n`;
+    jsCode += `  isoDate.setUTCDate(isoDate.getUTCDate() + 4 - isoDay)\n`;
+    jsCode += `  const isoYearStart = new Date(Date.UTC(isoDate.getUTCFullYear(), 0, 1))\n`;
+    jsCode += `  const isoWeek = Math.ceil((((isoDate - isoYearStart) / 86400000) + 1) / 7)\n`;
     jsCode += `  const day = pad2(date.getDate())\n`;
     jsCode += `  const month = pad2(date.getMonth() + 1)\n`;
     jsCode += `  const year = String(date.getFullYear())\n`;
@@ -2297,6 +2466,20 @@ function generateZeppCode() {
     jsCode += `  if (format === 'day-month-year-numeric') return day + '/' + month + '/' + year\n`;
     jsCode += `  if (format === 'iso') return year + '-' + month + '-' + day\n`;
     jsCode += `  if (format === 'month-day') return monthShort + ' ' + day\n`;
+    jsCode += `  if (format === 'day-padded') return day\n`;
+    jsCode += `  if (format === 'day-number') return String(date.getDate())\n`;
+    jsCode += `  if (format === 'month-number-padded') return month\n`;
+    jsCode += `  if (format === 'month-number') return String(date.getMonth() + 1)\n`;
+    jsCode += `  if (format === 'month-short') return monthShort\n`;
+    jsCode += `  if (format === 'month-long') return monthLong\n`;
+    jsCode += `  if (format === 'year-full') return year\n`;
+    jsCode += `  if (format === 'year-short') return year.slice(-2)\n`;
+    jsCode += `  if (format === 'weekday-short') return weekdayShort\n`;
+    jsCode += `  if (format === 'weekday-long') return weekdayLong\n`;
+    jsCode += `  if (format === 'day-of-year') return String(dayOfYear)\n`;
+    jsCode += `  if (format === 'day-of-year-padded') return dayOfYear < 10 ? '00' + dayOfYear : (dayOfYear < 100 ? '0' + dayOfYear : String(dayOfYear))\n`;
+    jsCode += `  if (format === 'iso-week') return String(isoWeek)\n`;
+    jsCode += `  if (format === 'week-padded') return pad2(isoWeek)\n`;
     jsCode += `  return weekdayShort + ', ' + day + ' ' + monthShort\n`;
     jsCode += `}\n\n`;
     jsCode += `function formatTimeText(format, date) {\n`;
@@ -2370,7 +2553,7 @@ function generateZeppCode() {
     jsCode += `  if (type === 'hour') return formatTimeText('hour-only', now)\n`;
     jsCode += `  if (type === 'minute') return formatTimeText('minute-only', now)\n`;
     jsCode += `  if (type === 'second') return formatTimeText('second-only', now)\n`;
-    jsCode += `  if (type === 'date') return formatDateText(options.dateFormat || 'weekday-day-month-short', now)\n`;
+    jsCode += `  if (type === 'date' || type === 'day' || type === 'month' || type === 'year' || type === 'weekday' || type === 'day-of-year' || type === 'week') return formatDateText(options.dateFormat || 'weekday-day-month-short', now)\n`;
     jsCode += `  if (type === 'battery') return String(getRawMetric('battery', 0))\n`;
     jsCode += `  if (type === 'steps') return String(getRawMetric('steps', 0))\n`;
     jsCode += `  if (type === 'heart') return String(getRawMetric('heart', 0))\n`;
@@ -2602,8 +2785,8 @@ function generateZeppCode() {
                     jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: 'bluetooth', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { okText: '${escapeGeneratedText(el.statusOkText || 'BT OK')}', koText: '${escapeGeneratedText(el.statusKoText || 'BT KO')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}', okColor: 0x${(el.statusOkColor || '#60a5fa').replace('#', '')}, koColor: 0x${(el.statusKoColor || '#f87171').replace('#', '')} })\n`;
                 } else if (el.type === 'time') {
                     jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: 'time', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { timeFormat: '${escapeGeneratedText(el.timeFormat || 'hh-mm-24')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}' })\n`;
-                } else if (el.type === 'date') {
-                    jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: 'date', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { dateFormat: '${escapeGeneratedText(el.dateFormat || 'weekday-day-month-short')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}' })\n`;
+                } else if (isCalendarMetricType(el.type)) {
+                    jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: '${el.type}', fallback: '${escapeGeneratedText(getElementDisplayText(el))}', options: { dateFormat: '${escapeGeneratedText(el.dateFormat || metricDefaults[el.type]?.dateFormat || 'weekday-day-month-short')}' }, prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}' })\n`;
                 } else {
                     jsCode += `    dynamicTexts.push({ node: ${textWidgetName}, type: '${dynamicType}', fallback: '${escapeGeneratedText(el.text)}', prefix: '${escapeGeneratedText(el.metricPrefix || '')}', suffix: '${escapeGeneratedText(el.metricSuffix || '')}' })\n`;
                 }

@@ -98,70 +98,112 @@
         <section
             class="lg:col-span-12 sticky top-[84px] z-40 bg-slate-950/88 border border-slate-800/90 rounded-2xl px-3 py-2.5 backdrop-blur-md shadow-lg shadow-slate-950/30">
             <div class="flex gap-2 overflow-x-auto widget-toolbar">
-                <button onclick="addElement('time')" class="widget-tool"><i data-lucide="clock"
-                        class="w-4 h-4 text-cyan-400"></i><span>Hora</span></button>
-                <button onclick="addElement('hour')" class="widget-tool"><i data-lucide="clock-3"
-                        class="w-4 h-4 text-cyan-300"></i><span>Horas</span></button>
-                <button onclick="addElement('minute')" class="widget-tool"><i data-lucide="clock-9"
-                        class="w-4 h-4 text-sky-300"></i><span>Min</span></button>
-                <button onclick="addElement('second')" class="widget-tool"><i data-lucide="timer"
-                        class="w-4 h-4 text-slate-300"></i><span>Seg</span></button>
-                <button onclick="addElement('date')" class="widget-tool"><i data-lucide="calendar"
-                        class="w-4 h-4 text-emerald-400"></i><span>Fecha</span></button>
-                <button onclick="addElement('steps')" class="widget-tool"><i data-lucide="footprints"
-                        class="w-4 h-4 text-amber-400"></i><span>Pasos</span></button>
-                <button onclick="addElement('calories')" class="widget-tool"><i data-lucide="flame"
-                        class="w-4 h-4 text-orange-400"></i><span>Kcal</span></button>
-                <button onclick="addElement('distance')" class="widget-tool"><i data-lucide="map"
-                        class="w-4 h-4 text-lime-400"></i><span>Distancia</span></button>
-                <button onclick="addElement('heart')" class="widget-tool"><i data-lucide="heart"
-                        class="w-4 h-4 text-rose-500"></i><span>Pulso</span></button>
-                <button onclick="addElement('battery')" class="widget-tool"><i data-lucide="battery-charging"
-                        class="w-4 h-4 text-teal-400"></i><span>Batería</span></button>
-                <button onclick="addElement('sleep')" class="widget-tool"><i data-lucide="bed"
-                        class="w-4 h-4 text-indigo-300"></i><span>Sueño</span></button>
-                <button onclick="addElement('stress')" class="widget-tool"><i data-lucide="activity"
-                        class="w-4 h-4 text-red-400"></i><span>Estrés</span></button>
-                <button onclick="addElement('spo2')" class="widget-tool"><i data-lucide="droplets"
-                        class="w-4 h-4 text-sky-400"></i><span>SpO2</span></button>
-                <button onclick="addElement('pai')" class="widget-tool"><i data-lucide="gauge"
-                        class="w-4 h-4 text-violet-400"></i><span>PAI</span></button>
-                <button onclick="addElement('weather')" class="widget-tool"><i data-lucide="cloud-sun"
-                        class="w-4 h-4 text-yellow-300"></i><span>Clima</span></button>
-                <button onclick="addElement('temperature')" class="widget-tool"><i data-lucide="thermometer"
-                        class="w-4 h-4 text-red-300"></i><span>Temp</span></button>
-                <button onclick="addElement('humidity')" class="widget-tool"><i data-lucide="waves"
-                        class="w-4 h-4 text-blue-300"></i><span>Humedad</span></button>
-                <button onclick="addElement('uv')" class="widget-tool"><i data-lucide="sun"
-                        class="w-4 h-4 text-yellow-400"></i><span>UV</span></button>
-                <button onclick="addElement('altitude')" class="widget-tool"><i data-lucide="mountain"
-                        class="w-4 h-4 text-stone-300"></i><span>Altitud</span></button>
-                <button onclick="addElement('pressure')" class="widget-tool"><i data-lucide="gauge"
-                        class="w-4 h-4 text-cyan-300"></i><span>Presión</span></button>
-                <button onclick="addElement('sunrise')" class="widget-tool"><i data-lucide="sunrise"
-                        class="w-4 h-4 text-orange-300"></i><span>Amanecer</span></button>
-                <button onclick="addElement('sunset')" class="widget-tool"><i data-lucide="sunset"
-                        class="w-4 h-4 text-pink-300"></i><span>Atardecer</span></button>
-                <button onclick="addElement('alarm')" class="widget-tool"><i data-lucide="bell"
-                        class="w-4 h-4 text-purple-300"></i><span>Alarma</span></button>
-                <button onclick="addElement('bluetooth')" class="widget-tool"><i data-lucide="bluetooth"
-                        class="w-4 h-4 text-blue-400"></i><span>Bluetooth</span></button>
-                <button onclick="addElement('stopwatch')" class="widget-tool"><i data-lucide="timer"
-                        class="w-4 h-4 text-slate-300"></i><span>Crono</span></button>
-                <button onclick="addElement('label')" class="widget-tool"><i data-lucide="type"
-                        class="w-4 h-4 text-fuchsia-400"></i><span>Texto</span></button>
-                <button onclick="addElement('progress-bar')" class="widget-tool widget-tool-accent"><i
-                        data-lucide="percent" class="w-4 h-4 text-cyan-300"></i><span>Barra</span></button>
-                <button onclick="addElement('arc-progress')" class="widget-tool widget-tool-accent"><i
-                        data-lucide="circle-gauge" class="w-4 h-4 text-emerald-300"></i><span>Arco</span></button>
-                <button onclick="addElement('circle')" class="widget-tool widget-tool-accent"><i
-                        data-lucide="circle" class="w-4 h-4 text-sky-300"></i><span>Círculo</span></button>
-                <button onclick="addElement('stroke-rect')" class="widget-tool widget-tool-accent"><i
-                        data-lucide="square" class="w-4 h-4 text-violet-300"></i><span>Marco</span></button>
-                <button onclick="addElement('chart')" class="widget-tool widget-tool-accent"><i data-lucide="activity"
-                        class="w-4 h-4 text-rose-300"></i><span>Onda</span></button>
-                <button onclick="addElement('image')" class="widget-tool widget-tool-accent"><i data-lucide="image"
-                        class="w-4 h-4 text-amber-300"></i><span>Imagen</span></button>
+                <details class="widget-group">
+                    <summary><i data-lucide="clock" class="w-4 h-4 text-cyan-300"></i><span>Tiempo</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('time')" class="widget-tool"><i data-lucide="clock"
+                                class="w-4 h-4 text-cyan-400"></i><span>Hora</span></button>
+                        <button onclick="addElement('hour')" class="widget-tool"><i data-lucide="clock-3"
+                                class="w-4 h-4 text-cyan-300"></i><span>Horas</span></button>
+                        <button onclick="addElement('minute')" class="widget-tool"><i data-lucide="clock-9"
+                                class="w-4 h-4 text-sky-300"></i><span>Min</span></button>
+                        <button onclick="addElement('second')" class="widget-tool"><i data-lucide="timer"
+                                class="w-4 h-4 text-slate-300"></i><span>Seg</span></button>
+                        <button onclick="addElement('stopwatch')" class="widget-tool"><i data-lucide="timer"
+                                class="w-4 h-4 text-slate-300"></i><span>Crono</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="calendar-days" class="w-4 h-4 text-emerald-300"></i><span>Calendario</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('date')" class="widget-tool"><i data-lucide="calendar"
+                                class="w-4 h-4 text-emerald-400"></i><span>Fecha</span></button>
+                        <button onclick="addElement('day')" class="widget-tool"><i data-lucide="calendar-1"
+                                class="w-4 h-4 text-emerald-300"></i><span>Día</span></button>
+                        <button onclick="addElement('month')" class="widget-tool"><i data-lucide="calendar-range"
+                                class="w-4 h-4 text-teal-300"></i><span>Mes</span></button>
+                        <button onclick="addElement('year')" class="widget-tool"><i data-lucide="calendar-clock"
+                                class="w-4 h-4 text-cyan-300"></i><span>Año</span></button>
+                        <button onclick="addElement('weekday')" class="widget-tool"><i data-lucide="calendar-check"
+                                class="w-4 h-4 text-lime-300"></i><span>Día sem.</span></button>
+                        <button onclick="addElement('day-of-year')" class="widget-tool"><i data-lucide="calendar-plus"
+                                class="w-4 h-4 text-amber-300"></i><span>Día año</span></button>
+                        <button onclick="addElement('week')" class="widget-tool"><i data-lucide="calendar-fold"
+                                class="w-4 h-4 text-sky-300"></i><span>Semana</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="activity" class="w-4 h-4 text-rose-300"></i><span>Salud</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('steps')" class="widget-tool"><i data-lucide="footprints"
+                                class="w-4 h-4 text-amber-400"></i><span>Pasos</span></button>
+                        <button onclick="addElement('calories')" class="widget-tool"><i data-lucide="flame"
+                                class="w-4 h-4 text-orange-400"></i><span>Kcal</span></button>
+                        <button onclick="addElement('distance')" class="widget-tool"><i data-lucide="map"
+                                class="w-4 h-4 text-lime-400"></i><span>Distancia</span></button>
+                        <button onclick="addElement('heart')" class="widget-tool"><i data-lucide="heart"
+                                class="w-4 h-4 text-rose-500"></i><span>Pulso</span></button>
+                        <button onclick="addElement('sleep')" class="widget-tool"><i data-lucide="bed"
+                                class="w-4 h-4 text-indigo-300"></i><span>Sueño</span></button>
+                        <button onclick="addElement('stress')" class="widget-tool"><i data-lucide="activity"
+                                class="w-4 h-4 text-red-400"></i><span>Estrés</span></button>
+                        <button onclick="addElement('spo2')" class="widget-tool"><i data-lucide="droplets"
+                                class="w-4 h-4 text-sky-400"></i><span>SpO2</span></button>
+                        <button onclick="addElement('pai')" class="widget-tool"><i data-lucide="gauge"
+                                class="w-4 h-4 text-violet-400"></i><span>PAI</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="cloud-sun" class="w-4 h-4 text-yellow-300"></i><span>Entorno</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('weather')" class="widget-tool"><i data-lucide="cloud-sun"
+                                class="w-4 h-4 text-yellow-300"></i><span>Clima</span></button>
+                        <button onclick="addElement('temperature')" class="widget-tool"><i data-lucide="thermometer"
+                                class="w-4 h-4 text-red-300"></i><span>Temp</span></button>
+                        <button onclick="addElement('humidity')" class="widget-tool"><i data-lucide="waves"
+                                class="w-4 h-4 text-blue-300"></i><span>Humedad</span></button>
+                        <button onclick="addElement('uv')" class="widget-tool"><i data-lucide="sun"
+                                class="w-4 h-4 text-yellow-400"></i><span>UV</span></button>
+                        <button onclick="addElement('altitude')" class="widget-tool"><i data-lucide="mountain"
+                                class="w-4 h-4 text-stone-300"></i><span>Altitud</span></button>
+                        <button onclick="addElement('pressure')" class="widget-tool"><i data-lucide="gauge"
+                                class="w-4 h-4 text-cyan-300"></i><span>Presión</span></button>
+                        <button onclick="addElement('sunrise')" class="widget-tool"><i data-lucide="sunrise"
+                                class="w-4 h-4 text-orange-300"></i><span>Amanecer</span></button>
+                        <button onclick="addElement('sunset')" class="widget-tool"><i data-lucide="sunset"
+                                class="w-4 h-4 text-pink-300"></i><span>Atardecer</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="watch" class="w-4 h-4 text-blue-300"></i><span>Sistema</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('battery')" class="widget-tool"><i data-lucide="battery-charging"
+                                class="w-4 h-4 text-teal-400"></i><span>Batería</span></button>
+                        <button onclick="addElement('alarm')" class="widget-tool"><i data-lucide="bell"
+                                class="w-4 h-4 text-purple-300"></i><span>Alarma</span></button>
+                        <button onclick="addElement('bluetooth')" class="widget-tool"><i data-lucide="bluetooth"
+                                class="w-4 h-4 text-blue-400"></i><span>Bluetooth</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="shapes" class="w-4 h-4 text-violet-300"></i><span>Diseño</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('label')" class="widget-tool"><i data-lucide="type"
+                                class="w-4 h-4 text-fuchsia-400"></i><span>Texto</span></button>
+                        <button onclick="addElement('progress-bar')" class="widget-tool widget-tool-accent"><i
+                                data-lucide="percent" class="w-4 h-4 text-cyan-300"></i><span>Barra</span></button>
+                        <button onclick="addElement('arc-progress')" class="widget-tool widget-tool-accent"><i
+                                data-lucide="circle-gauge" class="w-4 h-4 text-emerald-300"></i><span>Arco</span></button>
+                        <button onclick="addElement('circle')" class="widget-tool widget-tool-accent"><i
+                                data-lucide="circle" class="w-4 h-4 text-sky-300"></i><span>Círculo</span></button>
+                        <button onclick="addElement('stroke-rect')" class="widget-tool widget-tool-accent"><i
+                                data-lucide="square" class="w-4 h-4 text-violet-300"></i><span>Marco</span></button>
+                        <button onclick="addElement('chart')" class="widget-tool widget-tool-accent"><i data-lucide="activity"
+                                class="w-4 h-4 text-rose-300"></i><span>Onda</span></button>
+                        <button onclick="addElement('image')" class="widget-tool widget-tool-accent"><i data-lucide="image"
+                                class="w-4 h-4 text-amber-300"></i><span>Imagen</span></button>
+                    </div>
+                </details>
             </div>
         </section>
 
@@ -387,6 +429,20 @@
                             <option value="day-month-year-numeric">30/06/2026</option>
                             <option value="iso">2026-06-30</option>
                             <option value="month-day">JUN 30</option>
+                            <option value="day-padded">30</option>
+                            <option value="day-number">30 sin cero inicial</option>
+                            <option value="month-number-padded">06</option>
+                            <option value="month-number">6 sin cero inicial</option>
+                            <option value="month-short">JUN</option>
+                            <option value="month-long">JUNIO</option>
+                            <option value="year-full">2026</option>
+                            <option value="year-short">26</option>
+                            <option value="weekday-short">MIE</option>
+                            <option value="weekday-long">MIERCOLES</option>
+                            <option value="day-of-year">181</option>
+                            <option value="day-of-year-padded">181 con ceros</option>
+                            <option value="iso-week">27</option>
+                            <option value="week-padded">27 con cero</option>
                         </select>
                     </div>
 
