@@ -903,6 +903,27 @@ function closeInstallModal() {
     modal.classList.remove('flex');
 }
 
+function openCodeImportModal() {
+    const modal = document.getElementById('code-import-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    const textArea = document.getElementById('code-import-json-text');
+    if (textArea) textArea.focus();
+    lucide.createIcons();
+}
+
+function closeCodeImportModal() {
+    const modal = document.getElementById('code-import-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    const textArea = document.getElementById('code-import-json-text');
+    if (textArea) textArea.value = '';
+    const fileInput = document.getElementById('code-import-json');
+    if (fileInput) fileInput.value = '';
+}
+
 // --- PRESETS Y PLANTILLAS ---
 const templates = {
     sport: [
@@ -956,6 +977,10 @@ window.addEventListener('DOMContentLoaded', () => {
     installModal.addEventListener('click', (event) => {
         if (event.target === installModal) closeInstallModal();
     });
+    const codeImportModal = document.getElementById('code-import-modal');
+    codeImportModal.addEventListener('click', (event) => {
+        if (event.target === codeImportModal) closeCodeImportModal();
+    });
 
     if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => {
@@ -985,6 +1010,7 @@ window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
         cancelStyleCopyMode();
         closeInstallModal();
+        closeCodeImportModal();
         return;
     }
 
@@ -1869,6 +1895,23 @@ function getDesignConfig() {
     };
 }
 
+function downloadDesignJSON() {
+    const designConfig = getDesignConfig();
+    const blob = new Blob([JSON.stringify(designConfig, null, 2)], { type: 'application/json' });
+    const downloadAnchor = document.createElement('a');
+    const modelSlug = (watchConfig.modelName || 'amazfit-design')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    downloadAnchor.href = URL.createObjectURL(blob);
+    downloadAnchor.download = `${modelSlug || 'amazfit-design'}-${Date.now()}.json`;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    URL.revokeObjectURL(downloadAnchor.href);
+    downloadAnchor.remove();
+    showNotification("Código JSON descargado", "success");
+}
+
 function getSafeProjectName() {
     const baseName = (watchConfig.modelName || 'amazfit-watchface')
         .toLowerCase()
@@ -2139,36 +2182,27 @@ function importJSON(event) {
     reader.onload = function (e) {
         try {
             const parsed = JSON.parse(e.target.result);
-            if (parsed.watchConfig && parsed.elements) {
-                watchConfig = {
-                    ...watchConfig,
-                    ...parsed.watchConfig
-                };
-                if (!watchConfig.modelName) watchConfig.modelName = watchModels[watchConfig.model]?.name || 'Personalizado';
-                if (!watchConfig.width) watchConfig.width = watchModels[watchConfig.model]?.width || 390;
-                if (!watchConfig.height) watchConfig.height = watchModels[watchConfig.model]?.height || 450;
-                if (!watchConfig.shape) watchConfig.shape = watchModels[watchConfig.model]?.shape || 'square';
-                if (watchModels[watchConfig.model]) {
-                    saveWatchPreference(STORAGE_KEYS.watchModel, watchConfig.model);
-                    saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
-                }
-                elements = parsed.elements.map(normalizeElement);
-                resetStyleCopyMode();
-                updateWatchViewport();
+            if (!loadDesignConfig(parsed)) {
+                showNotification("Formato JSON incompatible.", "error");
+            }
+        } catch (err) {
+            showNotification("Error procesando archivo.", "error");
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
 
-                changeBgType(watchConfig.bgType);
-                if (watchConfig.bgType === 'color') {
-                    document.getElementById('bg-color').value = watchConfig.bgColor;
-                } else if (watchConfig.bgType === 'gradient') {
-                    document.getElementById('bg-grad-start').value = watchConfig.bgGradStart;
-                    document.getElementById('bg-grad-end').value = watchConfig.bgGradEnd;
-                    document.getElementById('bg-grad-angle').value = watchConfig.bgGradAngle;
-                }
+function handleCodeImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-                updateBgSettings();
-                renderCanvas();
-                selectElement(null);
-                showNotification("Proyecto cargado con éxito!", "success");
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            if (loadDesignConfig(parsed)) {
+                closeCodeImportModal();
             } else {
                 showNotification("Formato JSON incompatible.", "error");
             }
@@ -2177,6 +2211,56 @@ function importJSON(event) {
         }
     };
     reader.readAsText(file);
+    event.target.value = '';
+}
+
+function importPastedDesignJSON() {
+    const textArea = document.getElementById('code-import-json-text');
+    const rawJson = textArea ? textArea.value.trim() : '';
+    if (!rawJson) {
+        showNotification("Pega un JSON antes de importarlo.", "error");
+        return;
+    }
+
+    try {
+        const parsed = JSON.parse(rawJson);
+        if (loadDesignConfig(parsed)) {
+            closeCodeImportModal();
+        } else {
+            showNotification("Formato JSON incompatible.", "error");
+        }
+    } catch (err) {
+        showNotification("JSON no válido.", "error");
+    }
+}
+
+function loadDesignConfig(parsed) {
+    if (!parsed || !parsed.watchConfig || !Array.isArray(parsed.elements)) return false;
+
+    watchConfig = {
+        ...watchConfig,
+        ...parsed.watchConfig
+    };
+    if (!watchConfig.modelName) watchConfig.modelName = watchModels[watchConfig.model]?.name || 'Personalizado';
+    if (!watchConfig.width) watchConfig.width = watchModels[watchConfig.model]?.width || 390;
+    if (!watchConfig.height) watchConfig.height = watchModels[watchConfig.model]?.height || 450;
+    if (!watchConfig.shape) watchConfig.shape = watchModels[watchConfig.model]?.shape || 'square';
+    if (watchModels[watchConfig.model]) {
+        saveWatchPreference(STORAGE_KEYS.watchModel, watchConfig.model);
+        saveWatchPreference(STORAGE_KEYS.watchShape, watchConfig.shape);
+    }
+    elements = parsed.elements.map(normalizeElement);
+    selectedElementId = null;
+    resetStyleCopyMode();
+    updateWatchViewport();
+    applyBackgroundControlsFromConfig();
+    changeBgType(watchConfig.bgType || 'gradient');
+    updateBgSettings();
+    renderCanvas();
+    selectElement(null);
+    saveCurrentDesignNow();
+    showNotification("Diseño JSON cargado con éxito", "success");
+    return true;
 }
 
 // --- RENDERIZADOR A IMAGEN REAL ---

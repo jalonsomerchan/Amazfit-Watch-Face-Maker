@@ -904,9 +904,65 @@
                     class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow">
                     <i data-lucide="copy" class="w-4 h-4"></i> Copiar código
                 </button>
+                <button onclick="openCodeImportModal()"
+                    class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow">
+                    <i data-lucide="file-up" class="w-4 h-4"></i> Importar código
+                </button>
+                <button onclick="downloadDesignJSON()"
+                    class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow">
+                    <i data-lucide="file-down" class="w-4 h-4"></i> Descargar código
+                </button>
             </div>
         </section>
     </main>
+
+    <!-- Modal de importación de código JSON -->
+    <div id="code-import-modal"
+        class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
+        <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                        <i data-lucide="file-up" class="w-4 h-4 text-cyan-300"></i> Importar código JSON
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">Carga un JSON exportado desde este editor.</p>
+                </div>
+                <button onclick="closeCodeImportModal()"
+                    class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <label
+                    class="block border-2 border-dashed border-slate-700 hover:border-cyan-500/70 rounded-xl p-6 text-center cursor-pointer transition bg-slate-950/40">
+                    <i data-lucide="upload-cloud" class="w-8 h-8 text-cyan-300 mx-auto mb-2"></i>
+                    <span class="block text-sm font-semibold text-slate-200">Seleccionar JSON de diseño</span>
+                    <span class="block text-xs text-slate-500 mt-1">Se reemplazará la esfera actual por el contenido del archivo.</span>
+                    <input type="file" id="code-import-json" class="hidden" accept=".json,application/json"
+                        onchange="handleCodeImportFile(event)">
+                </label>
+                <div class="space-y-2">
+                    <label for="code-import-json-text"
+                        class="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">O pega el JSON aquí</label>
+                    <textarea id="code-import-json-text" rows="8"
+                        placeholder='{"watchConfig": {...}, "elements": [...]}'
+                        class="w-full resize-y bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 outline-none focus:border-cyan-500/70"></textarea>
+                </div>
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button onclick="closeCodeImportModal()"
+                        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition">Cancelar</button>
+                    <button onclick="document.getElementById('code-import-json').click()"
+                        class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5">
+                        <i data-lucide="file-up" class="w-4 h-4"></i> Cargar JSON
+                    </button>
+                    <button onclick="importPastedDesignJSON()"
+                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i> Importar pegado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal de instalación -->
     <div id="install-modal"
