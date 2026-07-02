@@ -636,6 +636,7 @@ function pickStyleSource(sourceId) {
     normalizeElement(source);
     copyStyle(source, target);
     normalizeElement(target);
+    clampElementToCanvas(target);
     styleCopyTargetId = null;
     selectedElementId = target.id;
     renderCanvas();
@@ -673,6 +674,7 @@ function disableCopyStyleButton() {
 
 function copyStyle(source, target) {
     const commonStyleProps = [
+        'y',
         'fontSize',
         'fontFamily',
         'opacity',
@@ -700,6 +702,8 @@ function copyStyle(source, target) {
             if (source[prop] !== undefined) target[prop] = source[prop];
         });
     }
+
+    clampElementToCanvas(target);
 }
 
 function getCanvasWidth() {
@@ -713,6 +717,12 @@ function getCanvasHeight() {
 function snapToGrid(value) {
     if (!showGuides) return value;
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+function clampElementToCanvas(element) {
+    if (!element) return;
+    element.x = Math.max(0, Math.min(getCanvasWidth() - element.width, element.x || 0));
+    element.y = Math.max(0, Math.min(getCanvasHeight() - element.height, element.y || 0));
 }
 
 function getSavedWatchModel() {
@@ -978,10 +988,28 @@ window.addEventListener('keydown', (event) => {
         return;
     }
 
-    if (!isTypingField && (event.key === 'Delete' || event.key === 'Del' || event.key === 'Supr')) {
+    const isDeleteKey = ['Delete', 'Backspace', 'Del', 'Supr'].includes(event.key) ||
+        ['Delete', 'Backspace'].includes(event.code) ||
+        event.keyCode === 46 ||
+        event.keyCode === 8;
+    if (!isTypingField && isDeleteKey) {
         if (!selectedElementId) return;
         event.preventDefault();
         deleteSelectedElement();
+        return;
+    }
+
+    const arrowDeltas = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0]
+    };
+    if (!isTypingField && arrowDeltas[event.key]) {
+        if (!selectedElementId) return;
+        event.preventDefault();
+        const step = event.shiftKey ? GRID_SIZE : 1;
+        moveSelectedElementBy(arrowDeltas[event.key][0] * step, arrowDeltas[event.key][1] * step);
     }
 });
 
@@ -1399,6 +1427,24 @@ function stopResize() {
 
     renderCanvas();
     generateZeppCode();
+}
+
+function moveSelectedElementBy(deltaX, deltaY) {
+    const element = elements.find(el => el.id === selectedElementId);
+    if (!element) return;
+
+    element.x += deltaX;
+    element.y += deltaY;
+    clampElementToCanvas(element);
+
+    const propX = document.getElementById('prop-x');
+    const propY = document.getElementById('prop-y');
+    if (propX) propX.value = element.x;
+    if (propY) propY.value = element.y;
+
+    renderCanvas();
+    generateZeppCode();
+    scheduleDesignAutosave();
 }
 
 function centerSelectedElement(axis) {
