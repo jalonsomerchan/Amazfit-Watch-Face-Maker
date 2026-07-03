@@ -111,6 +111,8 @@
                                 class="w-4 h-4 text-slate-300"></i><span>Seg</span></button>
                         <button onclick="addElement('stopwatch')" class="widget-tool"><i data-lucide="timer"
                                 class="w-4 h-4 text-slate-300"></i><span>Crono</span></button>
+                        <button onclick="addElement('time-utc')" class="widget-tool"><i data-lucide="clock"
+                                class="w-4 h-4 text-blue-300"></i><span>UTC</span></button>
                     </div>
                 </details>
                 <details class="widget-group">
@@ -130,27 +132,111 @@
                                 class="w-4 h-4 text-amber-300"></i><span>Día año</span></button>
                         <button onclick="addElement('week')" class="widget-tool"><i data-lucide="calendar-fold"
                                 class="w-4 h-4 text-sky-300"></i><span>Semana</span></button>
+                        <button onclick="addElement('time-lunar-year')" class="widget-tool"><i data-lucide="calendar-days"
+                                class="w-4 h-4 text-emerald-200"></i><span>Año lunar</span></button>
+                        <button onclick="addElement('time-lunar-month')" class="widget-tool"><i data-lucide="calendar-days"
+                                class="w-4 h-4 text-emerald-200"></i><span>Mes lunar</span></button>
+                        <button onclick="addElement('time-lunar-day')" class="widget-tool"><i data-lucide="calendar-days"
+                                class="w-4 h-4 text-emerald-200"></i><span>Día lunar</span></button>
+                        <button onclick="addElement('time-lunar-festival')" class="widget-tool"><i data-lucide="calendar-heart"
+                                class="w-4 h-4 text-fuchsia-300"></i><span>Fiesta lunar</span></button>
+                        <button onclick="addElement('time-solar-term')" class="widget-tool"><i data-lucide="sun-medium"
+                                class="w-4 h-4 text-yellow-300"></i><span>Término solar</span></button>
+                        <button onclick="addElement('time-solar-festival')" class="widget-tool"><i data-lucide="calendar-star"
+                                class="w-4 h-4 text-rose-300"></i><span>Fiesta solar</span></button>
                     </div>
                 </details>
                 <details class="widget-group">
-                    <summary><i data-lucide="activity" class="w-4 h-4 text-rose-300"></i><span>Salud</span></summary>
+                    <summary><i data-lucide="footprints" class="w-4 h-4 text-amber-300"></i><span>Actividad</span></summary>
                     <div class="widget-group-menu">
                         <button onclick="addElement('steps')" class="widget-tool"><i data-lucide="footprints"
                                 class="w-4 h-4 text-amber-400"></i><span>Pasos</span></button>
+                        <button onclick="addElement('steps-target')" class="widget-tool"><i data-lucide="target"
+                                class="w-4 h-4 text-amber-300"></i><span>Objetivo pasos</span></button>
                         <button onclick="addElement('calories')" class="widget-tool"><i data-lucide="flame"
                                 class="w-4 h-4 text-orange-400"></i><span>Kcal</span></button>
+                        <button onclick="addElement('calories-target')" class="widget-tool"><i data-lucide="target"
+                                class="w-4 h-4 text-orange-300"></i><span>Objetivo kcal</span></button>
                         <button onclick="addElement('distance')" class="widget-tool"><i data-lucide="map"
                                 class="w-4 h-4 text-lime-400"></i><span>Distancia</span></button>
+                        <button onclick="addElement('stand')" class="widget-tool"><i data-lucide="accessibility"
+                                class="w-4 h-4 text-cyan-300"></i><span>De pie</span></button>
+                        <button onclick="addElement('stand-target')" class="widget-tool"><i data-lucide="target"
+                                class="w-4 h-4 text-cyan-200"></i><span>Obj. de pie</span></button>
+                        <button onclick="addElement('fat-burning')" class="widget-tool"><i data-lucide="flame"
+                                class="w-4 h-4 text-orange-400"></i><span>Quema grasa</span></button>
+                        <button onclick="addElement('fat-burning-target')" class="widget-tool"><i data-lucide="target"
+                                class="w-4 h-4 text-orange-200"></i><span>Obj. grasa</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="heart-pulse" class="w-4 h-4 text-rose-300"></i><span>Salud</span></summary>
+                    <div class="widget-group-menu">
                         <button onclick="addElement('heart')" class="widget-tool"><i data-lucide="heart"
                                 class="w-4 h-4 text-rose-500"></i><span>Pulso</span></button>
-                        <button onclick="addElement('sleep')" class="widget-tool"><i data-lucide="bed"
-                                class="w-4 h-4 text-indigo-300"></i><span>Sueño</span></button>
+                        <button onclick="addElement('heart-last')" class="widget-tool"><i data-lucide="heart-pulse"
+                                class="w-4 h-4 text-rose-400"></i><span>Pulso último</span></button>
+                        <button onclick="addElement('heart-current')" class="widget-tool"><i data-lucide="heart"
+                                class="w-4 h-4 text-red-400"></i><span>Pulso actual</span></button>
                         <button onclick="addElement('stress')" class="widget-tool"><i data-lucide="activity"
                                 class="w-4 h-4 text-red-400"></i><span>Estrés</span></button>
+                        <button onclick="addElement('stress-time')" class="widget-tool"><i data-lucide="clock"
+                                class="w-4 h-4 text-red-300"></i><span>Hora estrés</span></button>
                         <button onclick="addElement('spo2')" class="widget-tool"><i data-lucide="droplets"
                                 class="w-4 h-4 text-sky-400"></i><span>SpO2</span></button>
+                        <button onclick="addElement('spo2-time')" class="widget-tool"><i data-lucide="clock"
+                                class="w-4 h-4 text-sky-300"></i><span>Hora SpO2</span></button>
+                        <button onclick="addElement('spo2-retcode')" class="widget-tool"><i data-lucide="binary"
+                                class="w-4 h-4 text-sky-200"></i><span>Código SpO2</span></button>
                         <button onclick="addElement('pai')" class="widget-tool"><i data-lucide="gauge"
                                 class="w-4 h-4 text-violet-400"></i><span>PAI</span></button>
+                        <button onclick="addElement('pai-daily')" class="widget-tool"><i data-lucide="gauge"
+                                class="w-4 h-4 text-purple-300"></i><span>PAI diario</span></button>
+                        <button onclick="addElement('pai-total')" class="widget-tool"><i data-lucide="gauge"
+                                class="w-4 h-4 text-violet-300"></i><span>PAI total</span></button>
+                        <button onclick="addElement('pai-pre0')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI -6</span></button>
+                        <button onclick="addElement('pai-pre1')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI -5</span></button>
+                        <button onclick="addElement('pai-pre2')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI -4</span></button>
+                        <button onclick="addElement('pai-pre3')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI -3</span></button>
+                        <button onclick="addElement('pai-pre4')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI anteayer</span></button>
+                        <button onclick="addElement('pai-pre5')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI ayer</span></button>
+                        <button onclick="addElement('pai-pre6')" class="widget-tool"><i data-lucide="history"
+                                class="w-4 h-4 text-violet-200"></i><span>PAI hoy</span></button>
+                        <button onclick="addElement('body-temp')" class="widget-tool"><i data-lucide="thermometer"
+                                class="w-4 h-4 text-red-300"></i><span>Temp. corporal</span></button>
+                        <button onclick="addElement('body-temp-interval')" class="widget-tool"><i data-lucide="timer-reset"
+                                class="w-4 h-4 text-red-200"></i><span>Intervalo temp.</span></button>
+                    </div>
+                </details>
+                <details class="widget-group">
+                    <summary><i data-lucide="bed" class="w-4 h-4 text-indigo-300"></i><span>Sueño</span></summary>
+                    <div class="widget-group-menu">
+                        <button onclick="addElement('sleep')" class="widget-tool"><i data-lucide="bed"
+                                class="w-4 h-4 text-indigo-300"></i><span>Sueño</span></button>
+                        <button onclick="addElement('sleep-total')" class="widget-tool"><i data-lucide="bed"
+                                class="w-4 h-4 text-indigo-300"></i><span>Sueño total</span></button>
+                        <button onclick="addElement('sleep-score')" class="widget-tool"><i data-lucide="gauge"
+                                class="w-4 h-4 text-violet-300"></i><span>Score sueño</span></button>
+                        <button onclick="addElement('sleep-deep')" class="widget-tool"><i data-lucide="moon"
+                                class="w-4 h-4 text-indigo-400"></i><span>Profundo</span></button>
+                        <button onclick="addElement('sleep-light')" class="widget-tool"><i data-lucide="cloud-moon"
+                                class="w-4 h-4 text-blue-300"></i><span>Ligero</span></button>
+                        <button onclick="addElement('sleep-rem')" class="widget-tool"><i data-lucide="sparkles"
+                                class="w-4 h-4 text-purple-300"></i><span>REM</span></button>
+                        <button onclick="addElement('sleep-awake')" class="widget-tool"><i data-lucide="sun"
+                                class="w-4 h-4 text-yellow-300"></i><span>Despierto</span></button>
+                        <button onclick="addElement('sleep-start')" class="widget-tool"><i data-lucide="log-in"
+                                class="w-4 h-4 text-indigo-200"></i><span>Inicio</span></button>
+                        <button onclick="addElement('sleep-end')" class="widget-tool"><i data-lucide="log-out"
+                                class="w-4 h-4 text-indigo-200"></i><span>Fin</span></button>
+                        <button onclick="addElement('sleep-stages')" class="widget-tool"><i data-lucide="list-tree"
+                                class="w-4 h-4 text-purple-200"></i><span>Fases</span></button>
                     </div>
                 </details>
                 <details class="widget-group">
@@ -158,8 +244,18 @@
                     <div class="widget-group-menu">
                         <button onclick="addElement('weather')" class="widget-tool"><i data-lucide="cloud-sun"
                                 class="w-4 h-4 text-yellow-300"></i><span>Clima</span></button>
+                        <button onclick="addElement('weather-city')" class="widget-tool"><i data-lucide="map-pin"
+                                class="w-4 h-4 text-yellow-200"></i><span>Ciudad</span></button>
+                        <button onclick="addElement('weather-index')" class="widget-tool"><i data-lucide="cloud-sun"
+                                class="w-4 h-4 text-yellow-400"></i><span>Índice clima</span></button>
                         <button onclick="addElement('temperature')" class="widget-tool"><i data-lucide="thermometer"
                                 class="w-4 h-4 text-red-300"></i><span>Temp</span></button>
+                        <button onclick="addElement('weather-high')" class="widget-tool"><i data-lucide="thermometer-sun"
+                                class="w-4 h-4 text-red-300"></i><span>Temp máx</span></button>
+                        <button onclick="addElement('weather-low')" class="widget-tool"><i data-lucide="thermometer-snowflake"
+                                class="w-4 h-4 text-cyan-300"></i><span>Temp mín</span></button>
+                        <button onclick="addElement('temp-range')" class="widget-tool"><i data-lucide="thermometer"
+                                class="w-4 h-4 text-orange-300"></i><span>Min/Max</span></button>
                         <button onclick="addElement('humidity')" class="widget-tool"><i data-lucide="waves"
                                 class="w-4 h-4 text-blue-300"></i><span>Humedad</span></button>
                         <button onclick="addElement('uv')" class="widget-tool"><i data-lucide="sun"
@@ -183,6 +279,24 @@
                                 class="w-4 h-4 text-purple-300"></i><span>Alarma</span></button>
                         <button onclick="addElement('bluetooth')" class="widget-tool"><i data-lucide="bluetooth"
                                 class="w-4 h-4 text-blue-400"></i><span>Bluetooth</span></button>
+                        <button onclick="addElement('wear')" class="widget-tool"><i data-lucide="watch"
+                                class="w-4 h-4 text-emerald-300"></i><span>Puesto</span></button>
+                        <button onclick="addElement('wear-code')" class="widget-tool"><i data-lucide="binary"
+                                class="w-4 h-4 text-green-300"></i><span>Código uso</span></button>
+                        <button onclick="addElement('vibrate-scene')" class="widget-tool"><i data-lucide="vibrate"
+                                class="w-4 h-4 text-fuchsia-300"></i><span>Vibración</span></button>
+                        <button onclick="addElement('world-clock-count')" class="widget-tool"><i data-lucide="globe-2"
+                                class="w-4 h-4 text-blue-200"></i><span>Nº relojes</span></button>
+                        <button onclick="addElement('world-clock-city')" class="widget-tool"><i data-lucide="globe-2"
+                                class="w-4 h-4 text-blue-200"></i><span>Ciudad mundial</span></button>
+                        <button onclick="addElement('world-clock-time')" class="widget-tool"><i data-lucide="clock"
+                                class="w-4 h-4 text-blue-300"></i><span>Hora mundial</span></button>
+                        <button onclick="addElement('music-title')" class="widget-tool"><i data-lucide="music"
+                                class="w-4 h-4 text-pink-300"></i><span>Canción</span></button>
+                        <button onclick="addElement('music-artist')" class="widget-tool"><i data-lucide="mic-2"
+                                class="w-4 h-4 text-fuchsia-300"></i><span>Artista</span></button>
+                        <button onclick="addElement('music-status')" class="widget-tool"><i data-lucide="circle-play"
+                                class="w-4 h-4 text-emerald-300"></i><span>Música</span></button>
                     </div>
                 </details>
                 <details class="widget-group">
@@ -190,18 +304,42 @@
                     <div class="widget-group-menu">
                         <button onclick="addElement('label')" class="widget-tool"><i data-lucide="type"
                                 class="w-4 h-4 text-fuchsia-400"></i><span>Texto</span></button>
-                        <button onclick="addElement('progress-bar')" class="widget-tool widget-tool-accent"><i
-                                data-lucide="percent" class="w-4 h-4 text-cyan-300"></i><span>Barra</span></button>
-                        <button onclick="addElement('arc-progress')" class="widget-tool widget-tool-accent"><i
-                                data-lucide="circle-gauge" class="w-4 h-4 text-emerald-300"></i><span>Arco</span></button>
-                        <button onclick="addElement('circle')" class="widget-tool widget-tool-accent"><i
-                                data-lucide="circle" class="w-4 h-4 text-sky-300"></i><span>Círculo</span></button>
-                        <button onclick="addElement('stroke-rect')" class="widget-tool widget-tool-accent"><i
-                                data-lucide="square" class="w-4 h-4 text-violet-300"></i><span>Marco</span></button>
-                        <button onclick="addElement('chart')" class="widget-tool widget-tool-accent"><i data-lucide="activity"
+                        <button onclick="addElement('progress-bar')" class="widget-tool"><i data-lucide="percent"
+                                class="w-4 h-4 text-cyan-300"></i><span>Barra</span></button>
+                        <button onclick="addElement('arc-progress')" class="widget-tool"><i data-lucide="circle-gauge"
+                                class="w-4 h-4 text-emerald-300"></i><span>Arco</span></button>
+                        <button onclick="addElement('circle')" class="widget-tool"><i data-lucide="circle"
+                                class="w-4 h-4 text-sky-300"></i><span>Círculo</span></button>
+                        <button onclick="addElement('stroke-rect')" class="widget-tool"><i data-lucide="square"
+                                class="w-4 h-4 text-violet-300"></i><span>Marco</span></button>
+                        <button onclick="addElement('chart')" class="widget-tool"><i data-lucide="activity"
                                 class="w-4 h-4 text-rose-300"></i><span>Onda</span></button>
-                        <button onclick="addElement('image')" class="widget-tool widget-tool-accent"><i data-lucide="image"
+                        <button onclick="addElement('image')" class="widget-tool"><i data-lucide="image"
                                 class="w-4 h-4 text-amber-300"></i><span>Imagen</span></button>
+                        <button onclick="addElement('analog-hands')" class="widget-tool"><i data-lucide="clock"
+                                class="w-4 h-4 text-cyan-300"></i><span>Agujas</span></button>
+                        <button onclick="addElement('multi-rings')" class="widget-tool"><i data-lucide="circle-gauge"
+                                class="w-4 h-4 text-emerald-300"></i><span>Anillos</span></button>
+                        <button onclick="addElement('weather-icon')" class="widget-tool"><i data-lucide="cloud-sun"
+                                class="w-4 h-4 text-yellow-300"></i><span>Icono clima</span></button>
+                        <button onclick="addElement('sun-position')" class="widget-tool"><i data-lucide="sun"
+                                class="w-4 h-4 text-amber-300"></i><span>Posición sol</span></button>
+                        <button onclick="addElement('moon-phase')" class="widget-tool"><i data-lucide="moon"
+                                class="w-4 h-4 text-violet-300"></i><span>Luna</span></button>
+                        <button onclick="addElement('separator-line')" class="widget-tool"><i data-lucide="minus"
+                                class="w-4 h-4 text-slate-300"></i><span>Línea</span></button>
+                        <button onclick="addElement('preset-icon')" class="widget-tool"><i data-lucide="star"
+                                class="w-4 h-4 text-yellow-300"></i><span>Icono</span></button>
+                        <button onclick="addElement('date-circle')" class="widget-tool"><i data-lucide="calendar-days"
+                                class="w-4 h-4 text-cyan-300"></i><span>Fecha círculo</span></button>
+                        <button onclick="addElement('battery-icon')" class="widget-tool"><i data-lucide="battery"
+                                class="w-4 h-4 text-teal-300"></i><span>Batería icono</span></button>
+                        <button onclick="addElement('countdown')" class="widget-tool"><i data-lucide="hourglass"
+                                class="w-4 h-4 text-sky-300"></i><span>Cuenta atrás</span></button>
+                        <button onclick="addElement('work-remaining')" class="widget-tool"><i data-lucide="briefcase"
+                                class="w-4 h-4 text-lime-300"></i><span>Salida trabajo</span></button>
+                        <button onclick="addElement('day-progress')" class="widget-tool"><i data-lucide="sun-medium"
+                                class="w-4 h-4 text-yellow-300"></i><span>Progreso día</span></button>
                     </div>
                 </details>
             </div>
@@ -570,6 +708,42 @@
                     </div>
 
                     <!-- Título opcional -->
+                    <div id="prop-text-api-container" class="space-y-2 hidden border-t border-slate-800/80 pt-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Alineación vertical</label>
+                                <select id="prop-align-v" onchange="updateElementProp('textVerticalAlign', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300">
+                                    <option value="top">Arriba</option>
+                                    <option value="center">Centro</option>
+                                    <option value="bottom">Abajo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Texto largo</label>
+                                <select id="prop-text-style" onchange="updateElementProp('textStyle', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300">
+                                    <option value="none">Sin recorte</option>
+                                    <option value="ellipsis">Puntos suspensivos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Espacio líneas</label>
+                                <input type="number" id="prop-line-space" min="0" max="80" step="1"
+                                    oninput="updateElementProp('lineSpace', parseInt(this.value) || 0)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-center font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-1">Espacio letras</label>
+                                <input type="number" id="prop-char-space" min="-20" max="80" step="1"
+                                    oninput="updateElementProp('charSpace', parseInt(this.value) || 0)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-center font-mono">
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="prop-title-container" class="space-y-2 border-t border-slate-800/80 pt-3">
                         <label class="flex items-center gap-2 text-[10px] text-slate-300 font-bold uppercase">
                             <input type="checkbox" id="prop-title-enabled"

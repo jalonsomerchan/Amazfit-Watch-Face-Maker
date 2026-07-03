@@ -471,7 +471,130 @@ function isShapeWidget(type) {
     return type === 'circle' || type === 'stroke-rect';
 }
 
+function isTextApiWidget(element) {
+    if (!element) return false;
+    const nonTextTypes = [
+        'progress-bar', 'arc-progress', 'circle', 'stroke-rect', 'chart', 'image',
+        'analog-hands', 'multi-rings', 'weather-icon', 'sun-position', 'separator-line',
+        'preset-icon', 'step-goal', 'date-circle', 'battery-icon'
+    ];
+    return !nonTextTypes.includes(element.type);
+}
+
+function ensureTextApiDefaults(element) {
+    if (!isTextApiWidget(element)) return;
+    if (!element.textVerticalAlign) element.textVerticalAlign = 'center';
+    if (!element.textStyle) element.textStyle = 'none';
+    if (element.lineSpace === undefined || element.lineSpace === null || element.lineSpace === '') element.lineSpace = 0;
+    if (element.charSpace === undefined || element.charSpace === null || element.charSpace === '') element.charSpace = 0;
+    element.lineSpace = Math.max(0, parseInt(element.lineSpace, 10) || 0);
+    element.charSpace = parseInt(element.charSpace, 10) || 0;
+}
+
+function getTextVerticalCss(element) {
+    const alignValue = element.textVerticalAlign || 'center';
+    if (alignValue === 'top') return 'flex-start';
+    if (alignValue === 'bottom') return 'flex-end';
+    return 'center';
+}
+
+function getTextOverflowCss(element) {
+    return element.textStyle === 'ellipsis'
+        ? 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'
+        : 'white-space: pre-wrap; overflow: visible; text-overflow: clip;';
+}
+
+function getZeppTextVerticalAlign(element) {
+    const alignValue = element.textVerticalAlign || 'center';
+    if (alignValue === 'top') return 'align.TOP';
+    if (alignValue === 'bottom') return 'align.BOTTOM';
+    return 'align.CENTER_V';
+}
+
+function getZeppTextStyle(element) {
+    return element.textStyle === 'ellipsis' ? 'hmUI.text_style.ELLIPSIS' : 'hmUI.text_style.NONE';
+}
+
+function drawTextLineWithCharSpace(ctx, text, x, y, align, charSpace) {
+    const value = String(text ?? '');
+    const spacing = parseInt(charSpace, 10) || 0;
+    if (!spacing || value.length <= 1) {
+        ctx.fillText(value, x, y);
+        return;
+    }
+
+    let totalWidth = 0;
+    for (let i = 0; i < value.length; i += 1) {
+        totalWidth += ctx.measureText(value[i]).width;
+    }
+    totalWidth += spacing * (value.length - 1);
+
+    let cursorX = x;
+    if (align === 'center') cursorX = x - (totalWidth / 2);
+    if (align === 'right') cursorX = x - totalWidth;
+
+    const previousAlign = ctx.textAlign;
+    ctx.textAlign = 'left';
+    for (let i = 0; i < value.length; i += 1) {
+        const char = value[i];
+        ctx.fillText(char, cursorX, y);
+        cursorX += ctx.measureText(char).width + spacing;
+    }
+    ctx.textAlign = previousAlign;
+}
+
+function drawTextBlockWithTextApi(ctx, text, boxX, boxY, boxW, boxH, element, fontSize) {
+    const lines = String(text ?? '').split(/\r?\n/);
+    const align = element.textAlign || 'center';
+    const lineSpace = Math.max(0, parseInt(element.lineSpace, 10) || 0);
+    const charSpace = parseInt(element.charSpace, 10) || 0;
+    const lineHeight = Math.max(1, (fontSize || element.fontSize || 14) + lineSpace);
+    const totalHeight = Math.max(1, (lines.length * (fontSize || element.fontSize || 14)) + Math.max(0, lines.length - 1) * lineSpace);
+    const safeBoxH = Math.max(1, boxH || totalHeight);
+    let startY = boxY;
+    if ((element.textVerticalAlign || 'center') === 'center') {
+        startY = boxY + Math.max(0, (safeBoxH - totalHeight) / 2);
+    } else if (element.textVerticalAlign === 'bottom') {
+        startY = boxY + Math.max(0, safeBoxH - totalHeight);
+    }
+
+    let xPos = boxX;
+    ctx.textAlign = 'left';
+    if (align === 'center') {
+        xPos = boxX + (boxW / 2);
+        ctx.textAlign = 'center';
+    } else if (align === 'right') {
+        xPos = boxX + boxW;
+        ctx.textAlign = 'right';
+    }
+
+    lines.forEach((line, index) => {
+        drawTextLineWithCharSpace(ctx, line, xPos, startY + (index * lineHeight), align, charSpace);
+    });
+}
+
+function getTextPreviewStyle(element, contentHeight) {
+    const scaledFontSize = (element.fontSize || 14) * SCALE;
+    const lineHeight = ((element.fontSize || 14) + (parseInt(element.lineSpace, 10) || 0)) * SCALE;
+    const charSpace = (parseInt(element.charSpace, 10) || 0) * SCALE;
+    return [
+        `font-family: ${getCssFontFamily(element.fontFamily || 'font-inter')}`,
+        `font-size: ${scaledFontSize}px`,
+        `line-height: ${Math.max(1, lineHeight)}px`,
+        `letter-spacing: ${charSpace}px`,
+        `color: ${getElementDisplayColor(element)}`,
+        `text-align: ${element.textAlign || 'center'}`,
+        `height: ${Math.max(1, contentHeight * SCALE)}px`,
+        'display: flex',
+        'flex-direction: column',
+        `justify-content: ${getTextVerticalCss(element)}`,
+        'width: 100%',
+        getTextOverflowCss(element)
+    ].join('; ');
+}
+
 function hasAutoContentHeight(element) {
+    if (isTextApiWidget(element)) return false;
     return element && !isShapeWidget(element.type);
 }
 
@@ -482,7 +605,9 @@ function getTitleContentHeight(element) {
 
 function getTextContentHeight(element) {
     const fontWeight = ['font-bebas', 'font-orbitron', 'font-chakra', 'font-montserrat', 'font-rajdhani'].includes(element.fontFamily) ? 'bold' : '';
-    return getMeasuredTextHeight(getElementDisplayText(element), element.fontFamily || 'font-inter', element.fontSize || 14, fontWeight);
+    const baseHeight = getMeasuredTextHeight(getElementDisplayText(element), element.fontFamily || 'font-inter', element.fontSize || 14, fontWeight);
+    const lineCount = Math.max(1, String(getElementDisplayText(element) || '').split(/\r?\n/).length);
+    return baseHeight + (lineCount - 1) * (parseInt(element.lineSpace, 10) || 0);
 }
 
 function getMeasuredTextHeight(text, fontClass, size, weight = '') {
@@ -573,6 +698,7 @@ function getElementDisplayColor(element) {
 function normalizeElement(element) {
     element.fontFamily = normalizeFontClass(element.fontFamily || 'font-inter');
     element.titleFontFamily = normalizeFontClass(element.titleFontFamily || 'font-rajdhani');
+    ensureTextApiDefaults(element);
     ensureTitleDefaults(element);
     if (!supportsOptionalTitle(element.type)) element.titleEnabled = false;
     ensureStatusDefaults(element);
@@ -689,6 +815,10 @@ function copyStyle(source, target) {
         'fontFamily',
         'opacity',
         'textAlign',
+        'textVerticalAlign',
+        'textStyle',
+        'lineSpace',
+        'charSpace',
         'renderAsImage'
     ];
 
@@ -1284,7 +1414,9 @@ function renderCanvas() {
         }
         else {
             // Widget estándar de Texto (Hora, Fecha, Pasos, Latidos, Batería, Texto Libre)
-            div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.fontFamily || 'font-inter')}; font-size: ${(el.fontSize || 14) * SCALE}px; color: ${getElementDisplayColor(el)}; text-align: ${el.textAlign || 'center'};">${getElementDisplayText(el)}</div>`;
+            const titleHeight = getTitleContentHeight(el);
+            const contentHeight = Math.max(1, el.height - titleHeight);
+            div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<div class="leading-none w-full" style="${getTextPreviewStyle(el, contentHeight)}"><span style="display:block; width:100%; ${getTextOverflowCss(el)}">${getElementDisplayText(el)}</span></div>`;
         }
 
         if (selectedElementId === el.id && !styleCopyTargetId) {
@@ -1538,6 +1670,7 @@ function selectElement(id) {
     const timeFormatContainer = document.getElementById('prop-time-format-container');
     const affixContainer = document.getElementById('prop-affix-container');
     const renderImageContainer = document.getElementById('prop-render-image-container');
+    const textApiContainer = document.getElementById('prop-text-api-container');
     const fontContainer = document.getElementById('prop-font-container');
     const colorSizeContainer = document.getElementById('prop-color-size-container');
     const progressContainer = document.getElementById('prop-progress-container');
@@ -1552,6 +1685,7 @@ function selectElement(id) {
     timeFormatContainer.classList.add('hidden');
     affixContainer.classList.add('hidden');
     renderImageContainer.classList.add('hidden');
+    if (textApiContainer) textApiContainer.classList.add('hidden');
     fontContainer.classList.remove('hidden');
     colorSizeContainer.classList.remove('hidden');
     progressContainer.classList.add('hidden');
@@ -1576,6 +1710,14 @@ function selectElement(id) {
     if (canRenderElementAsImage(element)) {
         renderImageContainer.classList.remove('hidden');
         document.getElementById('prop-render-image').checked = !!element.renderAsImage;
+    }
+
+    if (isTextApiWidget(element)) {
+        if (textApiContainer) textApiContainer.classList.remove('hidden');
+        document.getElementById('prop-align-v').value = element.textVerticalAlign || 'center';
+        document.getElementById('prop-text-style').value = element.textStyle || 'none';
+        document.getElementById('prop-line-space').value = element.lineSpace || 0;
+        document.getElementById('prop-char-space').value = element.charSpace || 0;
     }
 
     if (isDynamicMetricType(element.type)) {
@@ -1660,6 +1802,9 @@ function updateElementProp(key, value) {
     if (!element) return;
 
     element[key] = value;
+
+    if (key === 'lineSpace') element.lineSpace = Math.max(0, parseInt(value, 10) || 0);
+    if (key === 'charSpace') element.charSpace = parseInt(value, 10) || 0;
 
     if (key === 'color') {
         document.getElementById('prop-color-hex').value = value;
@@ -2083,7 +2228,7 @@ async function createElementImageDataUrl(el) {
     ctx.fillStyle = getElementDisplayColor(el);
     const fontWeight = ['font-bebas', 'font-orbitron', 'font-chakra', 'font-montserrat', 'font-rajdhani'].includes(el.fontFamily) ? 'bold' : '';
     ctx.font = getCanvasFont(el.fontFamily || 'font-inter', el.fontSize || 14, fontWeight);
-    ctx.fillText(getElementDisplayText(el), xPos, y);
+    drawTextBlockWithTextApi(ctx, getElementDisplayText(el), 0, y, canvas.width, Math.max(1, canvas.height - y), el, el.fontSize || 14);
 
     return canvas.toDataURL('image/png');
 }
@@ -2152,7 +2297,9 @@ async function exportJSON() {
     const zip = new JSZip();
     const root = zip.folder(projectName);
     const appJson = createZeusAppJson(projectName);
-    const watchfaceCode = document.getElementById('zepp-code-box').innerText;
+    const watchfaceCode = document.getElementById('zepp-code-box').innerText
+        .replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado')
+        .replace(/\n\s*probeBluetoothApis\(\)\s*\n/g, '\n    // probeBluetoothApis() desactivado\n');
     const designConfig = getDesignConfig();
 
     root.file('app.json', JSON.stringify(appJson, null, 2));
@@ -2448,17 +2595,7 @@ async function exportAsImage() {
                 ctx.font = getCanvasFont(el.fontFamily || 'font-inter', el.fontSize || 14, fontWeight);
                 ctx.textBaseline = 'top';
 
-                let xPos = el.x;
-                if (el.textAlign === 'center') {
-                    ctx.textAlign = 'center';
-                    xPos = el.x + (el.width / 2);
-                } else if (el.textAlign === 'right') {
-                    ctx.textAlign = 'right';
-                    xPos = el.x + el.width;
-                } else {
-                    ctx.textAlign = 'left';
-                }
-                ctx.fillText(getElementDisplayText(el), xPos, contentY);
+                drawTextBlockWithTextApi(ctx, getElementDisplayText(el), el.x, contentY, el.width, Math.max(1, el.height - titleOffset), el, el.fontSize || 14);
             }
             ctx.restore();
         });
@@ -2977,7 +3114,11 @@ function generateZeppCode() {
             jsCode += `      text_size: ${contentTextSize},\n`;
             jsCode += `      font: '${contentFontPath}',\n`;
             jsCode += `      color: 0x${getElementDisplayColor(el).replace('#', '')},\n`;
-            jsCode += `      align_h: ${zeppAlign}\n`;
+            jsCode += `      align_h: ${zeppAlign},\n`;
+            jsCode += `      align_v: ${getZeppTextVerticalAlign(el)},\n`;
+            jsCode += `      text_style: ${getZeppTextStyle(el)},\n`;
+            jsCode += `      line_space: ${Math.max(0, parseInt(el.lineSpace, 10) || 0)},\n`;
+            jsCode += `      char_space: ${parseInt(el.charSpace, 10) || 0}\n`;
             jsCode += `    })\n`;
             if (dynamicType) {
                 if (el.type === 'bluetooth') {
@@ -3680,32 +3821,8 @@ function generateZeppCode() {
     };
 
     function injectAdvancedToolbar() {
-        if (document.getElementById('advanced-widget-group')) return;
-        const toolbar = document.querySelector('.widget-toolbar');
-        if (!toolbar) return;
-        const group = document.createElement('details');
-        group.id = 'advanced-widget-group';
-        group.className = 'widget-group';
-        group.innerHTML = `
-            <summary><i data-lucide="sparkles" class="w-4 h-4 text-cyan-300"></i><span>Avanzados</span></summary>
-            <div class="widget-group-menu advanced-widget-menu">
-                <button onclick="addElement('analog-hands')" class="widget-tool"><i data-lucide="clock" class="w-4 h-4 text-cyan-300"></i><span>Agujas</span></button>
-                <button onclick="addElement('multi-rings')" class="widget-tool"><i data-lucide="circle-gauge" class="w-4 h-4 text-emerald-300"></i><span>Anillos</span></button>
-                <button onclick="addElement('weather-icon')" class="widget-tool"><i data-lucide="cloud-sun" class="w-4 h-4 text-yellow-300"></i><span>Icono clima</span></button>
-                <button onclick="addElement('temp-range')" class="widget-tool"><i data-lucide="thermometer" class="w-4 h-4 text-orange-300"></i><span>Min/Max</span></button>
-                <button onclick="addElement('moon-phase')" class="widget-tool"><i data-lucide="moon" class="w-4 h-4 text-violet-300"></i><span>Luna</span></button>
-                <button onclick="addElement('countdown')" class="widget-tool"><i data-lucide="hourglass" class="w-4 h-4 text-sky-300"></i><span>Cuenta atrás</span></button>
-                <button onclick="addElement('work-remaining')" class="widget-tool"><i data-lucide="briefcase" class="w-4 h-4 text-lime-300"></i><span>Salida trabajo</span></button>
-                <button onclick="addElement('sun-position')" class="widget-tool"><i data-lucide="sun" class="w-4 h-4 text-amber-300"></i><span>Posición sol</span></button>
-                <button onclick="addElement('separator-line')" class="widget-tool"><i data-lucide="minus" class="w-4 h-4 text-slate-300"></i><span>Línea</span></button>
-                <button onclick="addElement('preset-icon')" class="widget-tool"><i data-lucide="star" class="w-4 h-4 text-yellow-300"></i><span>Icono</span></button>
-                <button onclick="addElement('step-goal')" class="widget-tool"><i data-lucide="footprints" class="w-4 h-4 text-amber-300"></i><span>Objetivo pasos</span></button>
-                <button onclick="addElement('date-circle')" class="widget-tool"><i data-lucide="calendar-days" class="w-4 h-4 text-cyan-300"></i><span>Fecha círculo</span></button>
-                <button onclick="addElement('battery-icon')" class="widget-tool"><i data-lucide="battery" class="w-4 h-4 text-teal-300"></i><span>Batería icono</span></button>
-                <button onclick="addElement('day-progress')" class="widget-tool"><i data-lucide="sun-medium" class="w-4 h-4 text-yellow-300"></i><span>Progreso día</span></button>
-            </div>`;
-        toolbar.appendChild(group);
-        lucide.createIcons();
+        // La barra se define ahora en index.html para mantener categorías estables.
+        return;
     }
 
     function closeWidgetDropdowns(except) {
@@ -5382,6 +5499,9 @@ try {
 
         // Si queda una llamada suelta por otra variante.
         code = code.replace("    probeSensorExtraMethods()\n", "    // probeSensorExtraMethods() desactivado\n");
+        code = code
+            .replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado')
+            .replace(/\n\s*probeBluetoothApis\(\)\s*\n/g, '\n    // probeBluetoothApis() desactivado\n');
 
         return code;
     }
@@ -5523,4 +5643,1114 @@ try {
             console.log('[AmazfitEditor] amazfitProbeSleepPai ERROR: ' + e);
         }
     };
+})();
+
+
+/*
+ * --- CATÁLOGO COMPLETO hmSensor Zepp OS ---
+ * Añade widgets para todos los sensorId documentados y corrige SLEEP usando
+ * updateInfo(), getTotalTime(), getBasicInfo() y getSleepStageData().
+ */
+(function installFullHmSensorCatalogPatch() {
+    if (typeof window === 'undefined') return;
+    if (window.__fullHmSensorCatalogPatchInstalled) return;
+    window.__fullHmSensorCatalogPatchInstalled = true;
+
+    const FULL_HMSENSOR_WIDGETS = {
+        'time-utc': { label: 'UTC', group: 'Tiempo', icon: 'clock', text: '1767222000000', color: '#93c5fd', fontSize: 16, fontFamily: 'font-mono-tech' },
+        'time-lunar-year': { label: 'Año lunar', group: 'Tiempo', icon: 'calendar-days', text: '2026', color: '#a7f3d0', fontSize: 18, fontFamily: 'font-chakra' },
+        'time-lunar-month': { label: 'Mes lunar', group: 'Tiempo', icon: 'calendar-days', text: '06', color: '#a7f3d0', fontSize: 18, fontFamily: 'font-chakra' },
+        'time-lunar-day': { label: 'Día lunar', group: 'Tiempo', icon: 'calendar-days', text: '19', color: '#a7f3d0', fontSize: 18, fontFamily: 'font-chakra' },
+        'time-lunar-festival': { label: 'Fiesta lunar', group: 'Tiempo', icon: 'calendar-heart', text: 'LUNAR', color: '#f0abfc', fontSize: 16, fontFamily: 'font-rajdhani' },
+        'time-solar-term': { label: 'Término solar', group: 'Tiempo', icon: 'sun-medium', text: 'SOLAR', color: '#fde68a', fontSize: 16, fontFamily: 'font-rajdhani' },
+        'time-solar-festival': { label: 'Fiesta solar', group: 'Tiempo', icon: 'calendar-star', text: 'FESTIVO', color: '#fda4af', fontSize: 16, fontFamily: 'font-rajdhani' },
+
+        'steps-target': { label: 'Objetivo pasos', group: 'Actividad', icon: 'target', text: '10000', color: '#fbbf24', fontSize: 22, fontFamily: 'font-chakra' },
+        'calories-target': { label: 'Objetivo kcal', group: 'Actividad', icon: 'target', text: '500', color: '#fb923c', fontSize: 22, fontFamily: 'font-chakra' },
+        'heart-last': { label: 'Pulso último', group: 'Salud', icon: 'heart-pulse', text: '75', color: '#fb7185', fontSize: 24, fontFamily: 'font-chakra' },
+        'heart-current': { label: 'Pulso actual', group: 'Salud', icon: 'heart', text: '72', color: '#f43f5e', fontSize: 24, fontFamily: 'font-chakra' },
+        'stand': { label: 'Horas de pie', group: 'Actividad', icon: 'accessibility', text: '7', color: '#22d3ee', fontSize: 22, fontFamily: 'font-chakra' },
+        'stand-target': { label: 'Objetivo de pie', group: 'Actividad', icon: 'target', text: '12', color: '#67e8f9', fontSize: 22, fontFamily: 'font-chakra' },
+        'fat-burning': { label: 'Quema grasa', group: 'Actividad', icon: 'flame', text: '28', color: '#f97316', fontSize: 22, fontFamily: 'font-chakra' },
+        'fat-burning-target': { label: 'Obj. quema grasa', group: 'Actividad', icon: 'target', text: '45', color: '#fdba74', fontSize: 22, fontFamily: 'font-chakra' },
+
+        'pai-daily': { label: 'PAI diario', group: 'Salud', icon: 'gauge', text: '12', color: '#c084fc', fontSize: 22, fontFamily: 'font-chakra' },
+        'pai-total': { label: 'PAI total', group: 'Salud', icon: 'gauge', text: '87', color: '#a78bfa', fontSize: 22, fontFamily: 'font-chakra' },
+        'pai-pre0': { label: 'PAI -6 días', group: 'Salud', icon: 'history', text: '8', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+        'pai-pre1': { label: 'PAI -5 días', group: 'Salud', icon: 'history', text: '10', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+        'pai-pre2': { label: 'PAI -4 días', group: 'Salud', icon: 'history', text: '9', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+        'pai-pre3': { label: 'PAI -3 días', group: 'Salud', icon: 'history', text: '11', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+        'pai-pre4': { label: 'PAI anteayer', group: 'Salud', icon: 'history', text: '7', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+        'pai-pre5': { label: 'PAI ayer', group: 'Salud', icon: 'history', text: '13', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+        'pai-pre6': { label: 'PAI hoy', group: 'Salud', icon: 'history', text: '12', color: '#ddd6fe', fontSize: 18, fontFamily: 'font-chakra' },
+
+        'sleep-total': { label: 'Sueño total', group: 'Sueño', icon: 'bed', text: '7:35', color: '#818cf8', fontSize: 24, fontFamily: 'font-chakra' },
+        'sleep-score': { label: 'Score sueño', group: 'Sueño', icon: 'gauge', text: '86', color: '#a78bfa', fontSize: 22, fontFamily: 'font-chakra' },
+        'sleep-deep': { label: 'Sueño profundo', group: 'Sueño', icon: 'moon', text: '1:42', color: '#6366f1', fontSize: 20, fontFamily: 'font-chakra' },
+        'sleep-light': { label: 'Sueño ligero', group: 'Sueño', icon: 'cloud-moon', text: '4:15', color: '#93c5fd', fontSize: 20, fontFamily: 'font-chakra' },
+        'sleep-rem': { label: 'Sueño REM', group: 'Sueño', icon: 'sparkles', text: '1:05', color: '#c084fc', fontSize: 20, fontFamily: 'font-chakra' },
+        'sleep-awake': { label: 'Despierto', group: 'Sueño', icon: 'sun', text: '0:12', color: '#fbbf24', fontSize: 20, fontFamily: 'font-chakra' },
+        'sleep-start': { label: 'Inicio sueño', group: 'Sueño', icon: 'log-in', text: '23:48', color: '#a5b4fc', fontSize: 20, fontFamily: 'font-orbitron' },
+        'sleep-end': { label: 'Fin sueño', group: 'Sueño', icon: 'log-out', text: '07:23', color: '#a5b4fc', fontSize: 20, fontFamily: 'font-orbitron' },
+        'sleep-stages': { label: 'Fases sueño', group: 'Sueño', icon: 'list-tree', text: '4 FASES', color: '#c4b5fd', fontSize: 16, fontFamily: 'font-rajdhani' },
+
+        'weather-city': { label: 'Ciudad clima', group: 'Entorno', icon: 'map-pin', text: 'CÁCERES', color: '#fef3c7', fontSize: 16, fontFamily: 'font-rajdhani' },
+        'weather-index': { label: 'Índice clima', group: 'Entorno', icon: 'cloud-sun', text: '1', color: '#fde047', fontSize: 22, fontFamily: 'font-chakra' },
+        'weather-high': { label: 'Temp máx', group: 'Entorno', icon: 'thermometer-sun', text: '31', color: '#fb7185', fontSize: 22, fontFamily: 'font-orbitron' },
+        'weather-low': { label: 'Temp mín', group: 'Entorno', icon: 'thermometer-snowflake', text: '18', color: '#67e8f9', fontSize: 22, fontFamily: 'font-orbitron' },
+
+        'spo2-time': { label: 'Hora SpO2', group: 'Salud', icon: 'clock', text: '09:30', color: '#7dd3fc', fontSize: 18, fontFamily: 'font-orbitron' },
+        'spo2-retcode': { label: 'Código SpO2', group: 'Salud', icon: 'binary', text: '0', color: '#bae6fd', fontSize: 18, fontFamily: 'font-chakra' },
+        'body-temp': { label: 'Temp corporal', group: 'Salud', icon: 'thermometer', text: '36.4', color: '#fca5a5', fontSize: 24, fontFamily: 'font-orbitron' },
+        'body-temp-interval': { label: 'Intervalo temp.', group: 'Salud', icon: 'timer-reset', text: '12', color: '#fecaca', fontSize: 18, fontFamily: 'font-chakra' },
+        'stress-time': { label: 'Hora estrés', group: 'Salud', icon: 'clock', text: '09:25', color: '#f87171', fontSize: 18, fontFamily: 'font-orbitron' },
+
+        'wear': { label: 'Estado uso', group: 'Sistema', icon: 'watch', text: 'PUESTO', color: '#34d399', fontSize: 18, fontFamily: 'font-rajdhani' },
+        'wear-code': { label: 'Código uso', group: 'Sistema', icon: 'binary', text: '1', color: '#86efac', fontSize: 18, fontFamily: 'font-chakra' },
+        'vibrate-scene': { label: 'Escena vibración', group: 'Sistema', icon: 'vibrate', text: '25', color: '#f0abfc', fontSize: 18, fontFamily: 'font-chakra' },
+        'world-clock-count': { label: 'Nº relojes mundo', group: 'Sistema', icon: 'globe-2', text: '2', color: '#93c5fd', fontSize: 18, fontFamily: 'font-chakra' },
+        'world-clock-city': { label: 'Ciudad mundial', group: 'Sistema', icon: 'globe-2', text: 'TOKYO', color: '#bfdbfe', fontSize: 16, fontFamily: 'font-rajdhani' },
+        'world-clock-time': { label: 'Hora mundial', group: 'Sistema', icon: 'clock', text: '18:09', color: '#60a5fa', fontSize: 22, fontFamily: 'font-orbitron' },
+        'music-title': { label: 'Canción', group: 'Sistema', icon: 'music', text: 'SONG TITLE', color: '#f9a8d4', fontSize: 16, fontFamily: 'font-rajdhani' },
+        'music-artist': { label: 'Artista', group: 'Sistema', icon: 'mic-2', text: 'ARTIST', color: '#f0abfc', fontSize: 16, fontFamily: 'font-rajdhani' },
+        'music-status': { label: 'Música estado', group: 'Sistema', icon: 'circle-play', text: 'PLAY', color: '#86efac', fontSize: 16, fontFamily: 'font-rajdhani' }
+    };
+
+    const BASE_SENSOR_WIDGET_DEFAULTS = {
+        sleep: { text: '7:35', color: '#818cf8', fontSize: 24, fontFamily: 'font-chakra' },
+        pai: { text: '87', color: '#a78bfa', fontSize: 22, fontFamily: 'font-chakra' },
+        humidity: { text: '45', color: '#7dd3fc', fontSize: 22, fontFamily: 'font-chakra' },
+        uv: { text: '4', color: '#fde047', fontSize: 22, fontFamily: 'font-chakra' },
+        altitude: { text: '459', color: '#d6d3d1', fontSize: 20, fontFamily: 'font-chakra' },
+        pressure: { text: '1016', color: '#67e8f9', fontSize: 20, fontFamily: 'font-chakra' },
+        alarm: { text: '07:30', color: '#c084fc', fontSize: 20, fontFamily: 'font-orbitron' },
+        stopwatch: { text: '00:00', color: '#e2e8f0', fontSize: 22, fontFamily: 'font-orbitron' }
+    };
+
+    function getFullWidgetDefault(type) {
+        return FULL_HMSENSOR_WIDGETS[type] || BASE_SENSOR_WIDGET_DEFAULTS[type] || null;
+    }
+
+    function patchMetricGlobals() {
+        try {
+            Object.keys(BASE_SENSOR_WIDGET_DEFAULTS).forEach(function(type) {
+                if (!DYNAMIC_METRIC_TYPES.includes(type)) DYNAMIC_METRIC_TYPES.push(type);
+                Object.assign(metricDefaults, { [type]: BASE_SENSOR_WIDGET_DEFAULTS[type] });
+            });
+            Object.keys(FULL_HMSENSOR_WIDGETS).forEach(function(type) {
+                if (!DYNAMIC_METRIC_TYPES.includes(type)) DYNAMIC_METRIC_TYPES.push(type);
+                const item = FULL_HMSENSOR_WIDGETS[type];
+                metricDefaults[type] = {
+                    text: item.text,
+                    color: item.color,
+                    fontSize: item.fontSize,
+                    fontFamily: item.fontFamily
+                };
+            });
+        } catch (e) {}
+    }
+
+    function patchMetricLabels() {
+        try {
+            const originalGetMetricLabel = getMetricLabel;
+            if (originalGetMetricLabel.__fullHmSensorPatched) return;
+            const patched = function(type) {
+                if (FULL_HMSENSOR_WIDGETS[type]) return FULL_HMSENSOR_WIDGETS[type].label.toUpperCase();
+                const baseLabels = {
+                    sleep: 'SUEÑO', pai: 'PAI', humidity: 'HUMEDAD', uv: 'UV', altitude: 'ALTITUD', pressure: 'PRESIÓN', alarm: 'ALARMA', stopwatch: 'CRONO'
+                };
+                return baseLabels[type] || originalGetMetricLabel(type);
+            };
+            patched.__fullHmSensorPatched = true;
+            getMetricLabel = patched;
+            window.getMetricLabel = patched;
+        } catch (e) {}
+    }
+
+    function createFullHmSensorElement(type) {
+        const defaults = getFullWidgetDefault(type);
+        if (!defaults) return null;
+        const id = 'el_' + Date.now();
+        const element = {
+            id,
+            type,
+            x: 40,
+            y: 100 + (elements.length * 30) % 220,
+            width: Math.min(310, Math.max(180, (defaults.text || '').length * 12 + 80)),
+            height: 50,
+            color: defaults.color || '#ffffff',
+            fontSize: defaults.fontSize || 22,
+            fontFamily: defaults.fontFamily || 'font-inter',
+            opacity: 1,
+            textAlign: 'center',
+            text: defaults.text || '--'
+        };
+        normalizeElement(element);
+        elements.push(element);
+        renderCanvas();
+        selectElement(id);
+        showNotification(`Widget de ${getMetricLabel(type)} añadido`, 'success');
+        return element;
+    }
+
+    function patchAddElementForFullSensors() {
+        try {
+            const originalAddElement = addElement;
+            if (originalAddElement.__fullHmSensorPatched) return;
+            const patched = function(type) {
+                if (getFullWidgetDefault(type)) return createFullHmSensorElement(type);
+                return originalAddElement.apply(this, arguments);
+            };
+            patched.__fullHmSensorPatched = true;
+            addElement = patched;
+            window.addElement = patched;
+        } catch (e) {}
+    }
+
+    function addToolbarButton(menu, type, item) {
+        if (!menu || menu.querySelector(`[data-full-hmsensor-type="${type}"]`)) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'widget-tool';
+        btn.setAttribute('data-full-hmsensor-type', type);
+        btn.setAttribute('onclick', `addElement('${type}')`);
+        btn.innerHTML = `<i data-lucide="${item.icon || 'activity'}" class="w-4 h-4 text-cyan-300"></i><span>${item.label}</span>`;
+        menu.appendChild(btn);
+    }
+
+    function findToolbarGroup(label) {
+        const groups = Array.prototype.slice.call(document.querySelectorAll('.widget-toolbar details.widget-group'));
+        return groups.find(function(group) {
+            const summaryText = group.querySelector('summary span');
+            return summaryText && summaryText.textContent.trim().toLowerCase() === label.toLowerCase();
+        });
+    }
+
+    function createToolbarGroup(label, icon) {
+        const toolbar = document.querySelector('.widget-toolbar');
+        if (!toolbar) return null;
+        let group = findToolbarGroup(label);
+        if (group) return group;
+        group = document.createElement('details');
+        group.className = 'widget-group';
+        group.setAttribute('data-full-hmsensor-group', label);
+        group.innerHTML = `<summary><i data-lucide="${icon || 'activity'}" class="w-4 h-4 text-cyan-300"></i><span>${label}</span></summary><div class="widget-group-menu"></div>`;
+        const designGroup = findToolbarGroup('Diseño');
+        if (designGroup && designGroup.parentNode) designGroup.parentNode.insertBefore(group, designGroup);
+        else toolbar.appendChild(group);
+        return group;
+    }
+
+    function injectFullSensorToolbar() {
+        try {
+            const groupInfo = {
+                Tiempo: { label: 'Tiempo+', icon: 'calendar-clock' },
+                Actividad: { label: 'Actividad+', icon: 'footprints' },
+                Salud: { label: 'Salud+', icon: 'heart-pulse' },
+                Sueño: { label: 'Sueño+', icon: 'bed' },
+                Entorno: { label: 'Entorno+', icon: 'cloud-sun' },
+                Sistema: { label: 'Sistema+', icon: 'watch' }
+            };
+            Object.keys(groupInfo).forEach(function(key) {
+                const group = createToolbarGroup(groupInfo[key].label, groupInfo[key].icon);
+                const menu = group && group.querySelector('.widget-group-menu');
+                Object.keys(FULL_HMSENSOR_WIDGETS).forEach(function(type) {
+                    const item = FULL_HMSENSOR_WIDGETS[type];
+                    if (item.group === key) addToolbarButton(menu, type, item);
+                });
+            });
+            try { lucide.createIcons(); } catch (e) {}
+        } catch (e) {}
+    }
+
+    function injectProgressOptions() {
+        try {
+            const select = document.getElementById('prop-progress-type');
+            if (!select) return;
+            const options = {
+                stand: '🧍 Horas de pie',
+                'fat-burning': '🔥 Quema grasa',
+                'body-temp': '🌡️ Temp. corporal',
+                'sleep-deep': '🌙 Sueño profundo',
+                'sleep-light': '💤 Sueño ligero',
+                'sleep-rem': '✨ Sueño REM',
+                'sleep-awake': '☀️ Despierto',
+                'pai-total': '◎ PAI total',
+                'pai-daily': '◎ PAI diario',
+                'music-status': '🎵 Música',
+                wear: '⌚ Puesto'
+            };
+            Object.keys(options).forEach(function(value) {
+                if (select.querySelector(`option[value="${value}"]`)) return;
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = options[value];
+                select.appendChild(option);
+            });
+        } catch (e) {}
+    }
+
+    function patchGeneratedCodeForFullHmSensors(code) {
+        if (!code || typeof code !== 'string') return code;
+
+        // Evita errores en Zeus cuando una llamada de diagnóstico queda en el código
+        // generado pero el helper opcional de Bluetooth no se ha inyectado.
+        code = code
+            .replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado')
+            .replace(/\n\s*probeBluetoothApis\(\)\s*\n/g, '\n    // probeBluetoothApis() desactivado\n');
+
+        const sensorAliasBlock = `const sensorAliases = {
+  time: ['TIME'],
+  battery: ['BATTERY'],
+  steps: ['STEP'],
+  heart: ['HEART'],
+  calories: ['CALORIE'],
+  distance: ['DISTANCE'],
+  stand: ['STAND'],
+  'fat-burning': ['FAT_BURRING', 'FAT_BURNING'],
+  sleep: ['SLEEP'],
+  stress: ['STRESS'],
+  spo2: ['SPO2', 'BLOOD_OXYGEN'],
+  pai: ['PAI'],
+  weather: ['WEATHER'],
+  'body-temp': ['BODY_TEMP'],
+  vibrate: ['VIBRATE'],
+  wear: ['WEAR'],
+  world_clock: ['WORLD_CLOCK'],
+  music: ['MUSIC'],
+  bluetooth: []
+}
+
+`;
+        code = code.replace(/const sensorAliases = \{[\s\S]*?\n\}\n\nfunction createSafeSensorByType/, sensorAliasBlock + 'function createSafeSensorByType');
+
+        const helper = `function fullSafeRead(fn, fallback) {
+  try {
+    const value = fn()
+    return value === undefined || value === null || value !== value ? fallback : value
+  } catch (e) {
+    return fallback
+  }
+}
+
+function fullNumber(value, fallback) {
+  if (typeof value === 'number' && value === value) return value
+  if (typeof value === 'boolean') return value ? 1 : 0
+  return fallback
+}
+
+function fullString(value, fallback) {
+  if (typeof value === 'string' && value) return value
+  if (typeof value === 'number' && value === value) return String(value)
+  if (typeof value === 'boolean') return value ? '1' : '0'
+  return fallback
+}
+
+function readDirectNumber(source, props, fallback) {
+  if (!source) return fallback
+  for (let i = 0; i < props.length; i += 1) {
+    const value = fullSafeRead(() => source[props[i]], undefined)
+    const parsed = fullNumber(value, undefined)
+    if (parsed !== undefined) return parsed
+  }
+  return fallback
+}
+
+function readDirectString(source, props, fallback) {
+  if (!source) return fallback
+  for (let i = 0; i < props.length; i += 1) {
+    const value = fullSafeRead(() => source[props[i]], undefined)
+    const parsed = fullString(value, undefined)
+    if (parsed !== undefined) return parsed
+  }
+  return fallback
+}
+
+function formatClockMinutes(minutes, fallback) {
+  const value = fullNumber(minutes, null)
+  if (value === null) return fallback || '--'
+  let total = Math.round(value)
+  const day = 24 * 60
+  while (total >= day) total -= day
+  while (total < 0) total += day
+  return pad2(Math.floor(total / 60)) + ':' + pad2(total % 60)
+}
+
+function getWeatherData() {
+  const weather = metricSensors.weather
+  if (!weather) return null
+  return fullSafeRead(() => {
+    if (typeof weather.getForecastWeather === 'function') return weather.getForecastWeather()
+    if (typeof weather.getForecast === 'function') return weather.getForecast()
+    return null
+  }, null)
+}
+
+function getTodayForecastItem() {
+  const data = getWeatherData()
+  if (data && data.forecastData && data.forecastData.data && data.forecastData.data[0]) return data.forecastData.data[0]
+  return null
+}
+
+function getTodayTideItem() {
+  const data = getWeatherData()
+  if (data && data.tideData && data.tideData.data && data.tideData.data[0]) return data.tideData.data[0]
+  return null
+}
+
+function getSleepBasicInfo() {
+  const sleep = metricSensors.sleep
+  if (!sleep) return null
+  fullSafeRead(() => typeof sleep.updateInfo === 'function' ? sleep.updateInfo() : null, null)
+  return fullSafeRead(() => typeof sleep.getBasicInfo === 'function' ? sleep.getBasicInfo() : null, null)
+}
+
+function getSleepTotalMinutes() {
+  const sleep = metricSensors.sleep
+  if (!sleep) return 0
+  fullSafeRead(() => typeof sleep.updateInfo === 'function' ? sleep.updateInfo() : null, null)
+  const direct = fullSafeRead(() => typeof sleep.getTotalTime === 'function' ? sleep.getTotalTime() : undefined, undefined)
+  if (typeof direct === 'number' && direct === direct && direct > 0) return direct
+  const basic = getSleepBasicInfo()
+  if (basic) {
+    const start = fullNumber(basic.startTime, null)
+    const end = fullNumber(basic.endTime, null)
+    if (start !== null && end !== null) return Math.max(0, end - start + 1)
+  }
+  return readDirectNumber(sleep, ['total','today','duration','minutes','current','last','value'], 0)
+}
+
+function getSleepStageMinutes(modelProp) {
+  const sleep = metricSensors.sleep
+  if (!sleep) return 0
+  fullSafeRead(() => typeof sleep.updateInfo === 'function' ? sleep.updateInfo() : null, null)
+  const stages = fullSafeRead(() => typeof sleep.getSleepStageData === 'function' ? sleep.getSleepStageData() : null, null)
+  const models = fullSafeRead(() => typeof sleep.getSleepStageModel === 'function' ? sleep.getSleepStageModel() : null, null)
+  if (!stages || !models) return 0
+  const wanted = models[modelProp]
+  if (wanted === undefined || wanted === null) return 0
+  let minutes = 0
+  for (let i = 0; i < stages.length; i += 1) {
+    const stage = stages[i]
+    if (stage && stage.model === wanted) minutes += Math.max(0, fullNumber(stage.stop, 0) - fullNumber(stage.start, 0))
+  }
+  return minutes
+}
+
+function getSleepStageCount() {
+  const sleep = metricSensors.sleep
+  if (!sleep) return 0
+  fullSafeRead(() => typeof sleep.updateInfo === 'function' ? sleep.updateInfo() : null, null)
+  const stages = fullSafeRead(() => typeof sleep.getSleepStageData === 'function' ? sleep.getSleepStageData() : null, null)
+  return stages && typeof stages.length === 'number' ? stages.length : 0
+}
+
+function getWorldClockInfo(index) {
+  const world = metricSensors.world_clock
+  if (!world) return null
+  fullSafeRead(() => typeof world.init === 'function' ? world.init() : null, null)
+  const count = fullSafeRead(() => typeof world.getWorldClockCount === 'function' ? world.getWorldClockCount() : 0, 0)
+  if (!count) return null
+  const pos = Math.max(0, Math.min(count - 1, index || 0))
+  return fullSafeRead(() => {
+    if (typeof world.getWorldClockInfo === 'function') return world.getWorldClockInfo(pos)
+    if (typeof world.getWorldClockCountInfo === 'function') return world.getWorldClockCountInfo(pos)
+    return null
+  }, null)
+}
+
+function getWearText(value) {
+  if (value === 0) return 'NO PUESTO'
+  if (value === 1) return 'PUESTO'
+  if (value === 2) return 'MOVIMIENTO'
+  if (value === 3) return 'DUDOSO'
+  return '--'
+}
+
+function getFullHmSensorRaw(type, fallback) {
+  const time = metricSensors.time
+  const steps = metricSensors.steps
+  const calories = metricSensors.calories
+  const heart = metricSensors.heart
+  const stand = metricSensors.stand
+  const fat = metricSensors['fat-burning']
+  const sleep = metricSensors.sleep
+  const pai = metricSensors.pai
+  const spo2 = metricSensors.spo2
+  const stress = metricSensors.stress
+  const body = metricSensors['body-temp']
+  const wear = metricSensors.wear
+  const music = metricSensors.music
+  const forecast = getTodayForecastItem()
+
+  if (type === 'time-utc') return readDirectNumber(time, ['utc'], Date.now())
+  if (type === 'time-lunar-year') return readDirectNumber(time, ['lunar_year'], fallback)
+  if (type === 'time-lunar-month') return readDirectNumber(time, ['lunar_month'], fallback)
+  if (type === 'time-lunar-day') return readDirectNumber(time, ['lunar_day'], fallback)
+  if (type === 'steps-target') return readDirectNumber(steps, ['target'], fallback)
+  if (type === 'calories-target') return readDirectNumber(calories, ['target'], fallback)
+  if (type === 'heart-last') return readDirectNumber(heart, ['last'], fallback)
+  if (type === 'heart-current') return readDirectNumber(heart, ['current'], fallback)
+  if (type === 'stand') return readDirectNumber(stand, ['current'], fallback)
+  if (type === 'stand-target') return readDirectNumber(stand, ['target'], fallback)
+  if (type === 'fat-burning') return readDirectNumber(fat, ['current'], fallback)
+  if (type === 'fat-burning-target') return readDirectNumber(fat, ['target'], fallback)
+  if (type === 'pai' || type === 'pai-total') return readDirectNumber(pai, ['totalpai'], fallback)
+  if (type === 'pai-daily') return readDirectNumber(pai, ['dailypai'], fallback)
+  if (type === 'pai-pre0') return readDirectNumber(pai, ['prepai0'], fallback)
+  if (type === 'pai-pre1') return readDirectNumber(pai, ['prepai1'], fallback)
+  if (type === 'pai-pre2') return readDirectNumber(pai, ['prepai2'], fallback)
+  if (type === 'pai-pre3') return readDirectNumber(pai, ['prepai3'], fallback)
+  if (type === 'pai-pre4') return readDirectNumber(pai, ['prepai4'], fallback)
+  if (type === 'pai-pre5') return readDirectNumber(pai, ['prepai5'], fallback)
+  if (type === 'pai-pre6') return readDirectNumber(pai, ['prepai6'], fallback)
+  if (type === 'sleep' || type === 'sleep-total') return getSleepTotalMinutes()
+  if (type === 'sleep-score') { const basic = getSleepBasicInfo(); return basic ? fullNumber(basic.score, fallback) : fallback }
+  if (type === 'sleep-deep') { const basic = getSleepBasicInfo(); return basic ? fullNumber(basic.deepMin, getSleepStageMinutes('DEEP_STAGE')) : getSleepStageMinutes('DEEP_STAGE') }
+  if (type === 'sleep-light') return getSleepStageMinutes('LIGHT_STAGE')
+  if (type === 'sleep-rem') return getSleepStageMinutes('REM_STAGE')
+  if (type === 'sleep-awake') return getSleepStageMinutes('WAKE_STAGE')
+  if (type === 'sleep-stages') return getSleepStageCount()
+  if (type === 'weather-index') return forecast ? fullNumber(forecast.index, fallback) : fallback
+  if (type === 'weather-high') return forecast ? fullNumber(forecast.high, fallback) : fallback
+  if (type === 'weather-low') return forecast ? fullNumber(forecast.low, fallback) : fallback
+  if (type === 'spo2-time') return readDirectNumber(spo2, ['time'], fallback)
+  if (type === 'spo2-retcode') return readDirectNumber(spo2, ['retcode'], fallback)
+  if (type === 'body-temp') return readDirectNumber(body, ['current'], fallback)
+  if (type === 'body-temp-interval') return readDirectNumber(body, ['timeinterval'], fallback)
+  if (type === 'stress-time') return readDirectNumber(stress, ['time'], fallback)
+  if (type === 'wear' || type === 'wear-code') return readDirectNumber(wear, ['current'], fallback)
+  if (type === 'vibrate-scene') return readDirectNumber(metricSensors.vibrate, ['scene'], fallback)
+  if (type === 'world-clock-count') return fullSafeRead(() => metricSensors.world_clock.getWorldClockCount(), fallback)
+  if (type === 'music-status') return readDirectNumber(music, ['isPlaying'], fallback)
+  return null
+}
+
+function getFullHmSensorText(type, fallback, options) {
+  const time = metricSensors.time
+  const weatherData = getWeatherData()
+  const tide = getTodayTideItem()
+  const basic = getSleepBasicInfo()
+  const worldInfo = getWorldClockInfo(options && options.worldClockIndex ? options.worldClockIndex : 0)
+  const music = metricSensors.music
+
+  if (type === 'time-utc') return String(getFullHmSensorRaw(type, Date.now()))
+  if (type === 'time-lunar-year') return String(getFullHmSensorRaw(type, fallback || '--'))
+  if (type === 'time-lunar-month') return String(getFullHmSensorRaw(type, fallback || '--'))
+  if (type === 'time-lunar-day') return String(getFullHmSensorRaw(type, fallback || '--'))
+  if (type === 'time-lunar-festival') return readDirectString(time, ['lunar_festival'], fallback || '--')
+  if (type === 'time-solar-term') return readDirectString(time, ['lunar_solar_term'], fallback || '--')
+  if (type === 'time-solar-festival') return readDirectString(time, ['solar_festival'], fallback || '--')
+  if (type === 'stand') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'stand-target') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'fat-burning') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'fat-burning-target') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type.indexOf('pai-') === 0 || type === 'pai') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'sleep' || type === 'sleep-total' || type === 'sleep-deep' || type === 'sleep-light' || type === 'sleep-rem' || type === 'sleep-awake') return formatDurationValue(getFullHmSensorRaw(type, 0))
+  if (type === 'sleep-score') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'sleep-start') return basic ? formatClockMinutes(basic.startTime, fallback) : (fallback || '--')
+  if (type === 'sleep-end') return basic ? formatClockMinutes((fullNumber(basic.endTime, 0) + 1), fallback) : (fallback || '--')
+  if (type === 'sleep-stages') return String(getSleepStageCount()) + ' FASES'
+  if (type === 'weather-city') return weatherData && weatherData.cityName ? String(weatherData.cityName).toUpperCase() : (fallback || '--')
+  if (type === 'weather-index') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'weather-high') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'weather-low') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'sunrise' && tide && tide.sunrise) return pad2(tide.sunrise.hour) + ':' + pad2(tide.sunrise.minute)
+  if (type === 'sunset' && tide && tide.sunset) return pad2(tide.sunset.hour) + ':' + pad2(tide.sunset.minute)
+  if (type === 'spo2-time') return formatClockMinutes(getFullHmSensorRaw(type, null), fallback)
+  if (type === 'spo2-retcode') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'body-temp') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'body-temp-interval') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'stress-time') return formatClockMinutes(getFullHmSensorRaw(type, null), fallback)
+  if (type === 'wear') return getWearText(getFullHmSensorRaw(type, -1))
+  if (type === 'wear-code') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'vibrate-scene') return String(getFullHmSensorRaw(type, fallback || '25'))
+  if (type === 'world-clock-count') return String(getFullHmSensorRaw(type, fallback || '0'))
+  if (type === 'world-clock-city') return worldInfo && worldInfo.city ? String(worldInfo.city).toUpperCase() : (fallback || '--')
+  if (type === 'world-clock-time') return worldInfo ? pad2(worldInfo.hour) + ':' + pad2(worldInfo.minute) : (fallback || '--')
+  if (type === 'music-title') return readDirectString(music, ['title'], fallback || '--')
+  if (type === 'music-artist') return readDirectString(music, ['artist'], fallback || '--')
+  if (type === 'music-status') return getFullHmSensorRaw(type, 0) ? 'PLAY' : 'PAUSE'
+  if (type === 'steps-target' || type === 'calories-target' || type === 'heart-last' || type === 'heart-current') return String(getFullHmSensorRaw(type, fallback || '0'))
+  return null
+}
+
+`;
+
+        if (!code.includes('function getFullHmSensorRaw(type, fallback)')) {
+            code = code.replace('function getRawMetric(type, fallback) {', helper + 'function getRawMetric(type, fallback) {\n  const fullRaw = getFullHmSensorRaw(type, null)\n  if (fullRaw !== null && fullRaw !== undefined) return fullRaw\n');
+        }
+
+        code = code.replace(/function getMetricPercent\(type\) \{[\s\S]*?\n\}\n\nfunction getMetricText/, `function getMetricPercent(type) {
+  if (type === 'battery') return getRawMetric('battery', 0)
+  if (type === 'steps') return clamp(Math.round((getRawMetric('steps', 0) / Math.max(1, getRawMetric('steps-target', 10000))) * 100), 0, 100)
+  if (type === 'heart' || type === 'heart-last' || type === 'heart-current') return clamp(Math.round(((getRawMetric(type === 'heart-current' ? 'heart-current' : 'heart-last', 0) - 40) / 140) * 100), 0, 100)
+  if (type === 'calories') return clamp(Math.round((getRawMetric('calories', 0) / Math.max(1, getRawMetric('calories-target', 500))) * 100), 0, 100)
+  if (type === 'distance') return clamp(Math.round((getRawMetric('distance', 0) / 5000) * 100), 0, 100)
+  if (type === 'sleep' || type === 'sleep-total') return clamp(Math.round((getRawMetric('sleep-total', 0) / 480) * 100), 0, 100)
+  if (type === 'sleep-deep' || type === 'sleep-light' || type === 'sleep-rem' || type === 'sleep-awake') return clamp(Math.round((getRawMetric(type, 0) / Math.max(1, getRawMetric('sleep-total', 480))) * 100), 0, 100)
+  if (type === 'stress') return getRawMetric('stress', 0)
+  if (type === 'spo2') return getRawMetric('spo2', 0)
+  if (type === 'pai' || type === 'pai-total') return clamp(getRawMetric('pai-total', 0), 0, 100)
+  if (type === 'pai-daily') return clamp(getRawMetric('pai-daily', 0), 0, 100)
+  if (type === 'stand') return clamp(Math.round((getRawMetric('stand', 0) / Math.max(1, getRawMetric('stand-target', 12))) * 100), 0, 100)
+  if (type === 'fat-burning') return clamp(Math.round((getRawMetric('fat-burning', 0) / Math.max(1, getRawMetric('fat-burning-target', 30))) * 100), 0, 100)
+  if (type === 'body-temp') return clamp(Math.round(((getRawMetric('body-temp', 36) - 30) / 12) * 100), 0, 100)
+  if (type === 'wear') return getRawMetric('wear', 0) === 1 ? 100 : 0
+  if (type === 'music-status') return getRawMetric('music-status', 0) ? 100 : 0
+  return 0
+}
+
+function getMetricText`);
+
+        if (!code.includes('const fullText = getFullHmSensorText(type, null, options)')) {
+            code = code.replace('function getMetricText(type, fallback, options) {\n  options = options || {}', 'function getMetricText(type, fallback, options) {\n  options = options || {}\n  const fullText = getFullHmSensorText(type, null, options)\n  if (fullText !== null && fullText !== undefined) return fullText');
+        }
+
+        code = code.replace(
+            "  if (type === 'pai') return Math.max(0, Math.round(readNumber(source, ['getCurrent', 'getToday', 'getTotal', 'getLast'], ['current', 'today', 'total', 'last', 'pai', 'value'], 0)))",
+            "  if (type === 'pai') return Math.max(0, Math.round(readDirectNumber(metricSensors.pai, ['totalpai'], readDirectNumber(metricSensors.pai, ['dailypai'], 0))))"
+        );
+
+        code = code.replace(
+            "  if (type === 'sleep') return Math.max(0, readNumber(source, ['getTotal', 'getToday', 'getCurrent', 'getLast'], ['total', 'today', 'duration', 'minutes', 'current', 'last', 'value'], 0))",
+            "  if (type === 'sleep') return getSleepTotalMinutes()"
+        );
+
+        return code;
+    }
+
+    function patchGeneratedCodeExporter() {
+        try {
+            const originalGenerate = generateZeppCode;
+            if (originalGenerate.__fullHmSensorCatalogPatched) return;
+            const patched = function() {
+                const result = originalGenerate.apply(this, arguments);
+                try {
+                    const codeBox = document.getElementById('zepp-code-box');
+                    if (codeBox && codeBox.innerText) codeBox.innerText = patchGeneratedCodeForFullHmSensors(codeBox.innerText);
+                } catch (e) {}
+                return typeof result === 'string' ? patchGeneratedCodeForFullHmSensors(result) : result;
+            };
+            patched.__fullHmSensorCatalogPatched = true;
+            generateZeppCode = patched;
+            window.generateZeppCode = patched;
+        } catch (e) {}
+    }
+
+    function initFullHmSensorCatalog() {
+        patchMetricGlobals();
+        patchMetricLabels();
+        patchAddElementForFullSensors();
+        // La barra de sensores está definida en index.html para evitar categorías duplicadas.
+        // injectFullSensorToolbar();
+        injectProgressOptions();
+        patchGeneratedCodeExporter();
+        try { if (typeof generateZeppCode === 'function') generateZeppCode(); } catch (e) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFullHmSensorCatalog);
+    } else {
+        initFullHmSensorCatalog();
+    }
+    setTimeout(initFullHmSensorCatalog, 400);
+    setTimeout(initFullHmSensorCatalog, 1200);
+    setTimeout(initFullHmSensorCatalog, 2500);
+})();
+
+/*
+ * Fix: evita que el watchface generado llame a probeBluetoothApis() si el helper
+ * opcional no ha quedado incluido. Esa llamada solo era de diagnóstico y no es
+ * necesaria para que los widgets funcionen.
+ */
+(function installGeneratedBluetoothProbeFix() {
+    if (typeof window === 'undefined') return;
+    if (window.__generatedBluetoothProbeFixInstalled) return;
+    window.__generatedBluetoothProbeFixInstalled = true;
+
+    function removeBluetoothProbeCalls(code) {
+        if (!code || typeof code !== 'string') return code;
+        return code
+            .replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado')
+            .replace(/\n\s*probeBluetoothApis\(\)\s*\n/g, '\n    // probeBluetoothApis() desactivado\n');
+    }
+
+    function patchGenerator(name) {
+        try {
+            const original = window[name] || (typeof globalThis !== 'undefined' ? globalThis[name] : null);
+            if (typeof original !== 'function' || original.__bluetoothProbeFixPatched) return;
+            const patched = function() {
+                const result = original.apply(this, arguments);
+                try {
+                    const box = document.getElementById('zepp-code-box');
+                    if (box && box.innerText) box.innerText = removeBluetoothProbeCalls(box.innerText);
+                } catch (_) {}
+                return typeof result === 'string' ? removeBluetoothProbeCalls(result) : result;
+            };
+            patched.__bluetoothProbeFixPatched = true;
+            window[name] = patched;
+            try { globalThis[name] = patched; } catch (_) {}
+        } catch (_) {}
+    }
+
+    function initGeneratedBluetoothProbeFix() {
+        ['generateZeppCode', 'createZeppCode', 'buildZeppCode', 'generateWatchfaceCode'].forEach(patchGenerator);
+        try {
+            const box = document.getElementById('zepp-code-box');
+            if (box && box.innerText) box.innerText = removeBluetoothProbeCalls(box.innerText);
+        } catch (_) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initGeneratedBluetoothProbeFix);
+    } else {
+        initGeneratedBluetoothProbeFix();
+    }
+    setTimeout(initGeneratedBluetoothProbeFix, 500);
+    setTimeout(initGeneratedBluetoothProbeFix, 1500);
+})();
+
+
+/*
+ * Fix final del generador: elimina declaraciones duplicadas en watchface/index.js.
+ * Algunos parches pueden inyectar helpers meteorológicos más de una vez
+ * (por ejemplo getTodayForecastItem), y Rollup/Zeus falla al compilar.
+ */
+(function installGeneratedCodeDuplicateFunctionFix() {
+    if (typeof window === 'undefined') return;
+    if (window.__generatedCodeDuplicateFunctionFixInstalled) return;
+    window.__generatedCodeDuplicateFunctionFixInstalled = true;
+
+    function findFunctionBlockEnd(source, openBraceIndex) {
+        let depth = 0;
+        let quote = null;
+        let escaped = false;
+        let lineComment = false;
+        let blockComment = false;
+        for (let i = openBraceIndex; i < source.length; i += 1) {
+            const ch = source[i];
+            const next = source[i + 1];
+
+            if (lineComment) {
+                if (ch === '\n' || ch === '\r') lineComment = false;
+                continue;
+            }
+            if (blockComment) {
+                if (ch === '*' && next === '/') {
+                    blockComment = false;
+                    i += 1;
+                }
+                continue;
+            }
+            if (quote) {
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if (ch === '\\') {
+                    escaped = true;
+                    continue;
+                }
+                if (ch === quote) quote = null;
+                continue;
+            }
+
+            if (ch === '/' && next === '/') {
+                lineComment = true;
+                i += 1;
+                continue;
+            }
+            if (ch === '/' && next === '*') {
+                blockComment = true;
+                i += 1;
+                continue;
+            }
+            if (ch === '\'' || ch === '"' || ch === '`') {
+                quote = ch;
+                continue;
+            }
+            if (ch === '{') {
+                depth += 1;
+                continue;
+            }
+            if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    function removeDuplicateTopLevelFunctions(code) {
+        if (!code || typeof code !== 'string') return code;
+        const seen = Object.create(null);
+        const ranges = [];
+        const re = /(^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g;
+        let match;
+        while ((match = re.exec(code))) {
+            const functionStart = match.index + match[1].length;
+            const name = match[2];
+            const openBrace = code.indexOf('{', re.lastIndex);
+            if (openBrace === -1) continue;
+            const end = findFunctionBlockEnd(code, openBrace);
+            if (end === -1) continue;
+            if (seen[name]) {
+                let removeStart = functionStart;
+                while (removeStart > 0 && (code[removeStart - 1] === '\n' || code[removeStart - 1] === '\r')) removeStart -= 1;
+                let removeEnd = end + 1;
+                while (removeEnd < code.length && (code[removeEnd] === '\n' || code[removeEnd] === '\r')) removeEnd += 1;
+                ranges.push([removeStart, removeEnd]);
+            } else {
+                seen[name] = true;
+            }
+            re.lastIndex = end + 1;
+        }
+        if (!ranges.length) return code;
+        let out = '';
+        let pos = 0;
+        for (let i = 0; i < ranges.length; i += 1) {
+            out += code.slice(pos, ranges[i][0]);
+            pos = ranges[i][1];
+        }
+        out += code.slice(pos);
+        return out.replace(/\n{4,}/g, '\n\n\n');
+    }
+
+    function removeDanglingProbeCalls(code) {
+        if (!code || typeof code !== 'string') return code;
+        if (code.includes('function probeBluetoothApis(')) return code;
+        return code
+            .replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado')
+            .replace(/\n\s*probeBluetoothApis\(\)\s*\n/g, '\n    // probeBluetoothApis() desactivado\n');
+    }
+
+    function sanitizeGeneratedWatchfaceCode(code) {
+        let out = removeDuplicateTopLevelFunctions(code || '');
+        out = removeDanglingProbeCalls(out);
+        return out;
+    }
+
+    function patchGenerator(name) {
+        try {
+            const original = window[name] || (typeof globalThis !== 'undefined' ? globalThis[name] : null);
+            if (typeof original !== 'function' || original.__duplicateFunctionFixPatched) return;
+            const patched = function() {
+                const result = original.apply(this, arguments);
+                try {
+                    const box = document.getElementById('zepp-code-box');
+                    if (box && box.innerText) box.innerText = sanitizeGeneratedWatchfaceCode(box.innerText);
+                } catch (_) {}
+                return typeof result === 'string' ? sanitizeGeneratedWatchfaceCode(result) : result;
+            };
+            patched.__duplicateFunctionFixPatched = true;
+            window[name] = patched;
+            try { globalThis[name] = patched; } catch (_) {}
+            if (name === 'generateZeppCode') {
+                try { generateZeppCode = patched; } catch (_) {}
+            }
+        } catch (_) {}
+    }
+
+    function initGeneratedCodeDuplicateFunctionFix() {
+        ['generateZeppCode', 'createZeppCode', 'buildZeppCode', 'generateWatchfaceCode'].forEach(patchGenerator);
+        try {
+            const box = document.getElementById('zepp-code-box');
+            if (box && box.innerText) box.innerText = sanitizeGeneratedWatchfaceCode(box.innerText);
+        } catch (_) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initGeneratedCodeDuplicateFunctionFix);
+    } else {
+        initGeneratedCodeDuplicateFunctionFix();
+    }
+    setTimeout(initGeneratedCodeDuplicateFunctionFix, 500);
+    setTimeout(initGeneratedCodeDuplicateFunctionFix, 1500);
+    setTimeout(initGeneratedCodeDuplicateFunctionFix, 3000);
+})();
+
+/*
+ * --- FIX INTEGRAL DEL CÓDIGO WATCHFACE GENERADO ---
+ * Normaliza el watchface/index.js antes de mostrarlo/copiarlo/exportarlo:
+ * - elimina funciones duplicadas que Rollup/Zeus trata como error en módulo
+ * - añade helpers opcionales si algún widget los referencia y no quedaron inyectados
+ * - elimina llamadas de diagnóstico que no deben romper en runtime
+ */
+(function installFinalGeneratedWatchfaceSafetyPatch() {
+    if (typeof window === 'undefined') return;
+    if (window.__finalGeneratedWatchfaceSafetyPatchInstalled) return;
+    window.__finalGeneratedWatchfaceSafetyPatchInstalled = true;
+
+    function findBlockEnd(source, openBraceIndex) {
+        let depth = 0;
+        let quote = null;
+        let escaped = false;
+        let lineComment = false;
+        let blockComment = false;
+        for (let i = openBraceIndex; i < source.length; i += 1) {
+            const ch = source[i];
+            const next = source[i + 1];
+            if (lineComment) {
+                if (ch === '\n' || ch === '\r') lineComment = false;
+                continue;
+            }
+            if (blockComment) {
+                if (ch === '*' && next === '/') { blockComment = false; i += 1; }
+                continue;
+            }
+            if (quote) {
+                if (escaped) { escaped = false; continue; }
+                if (ch === '\\') { escaped = true; continue; }
+                if (ch === quote) quote = null;
+                continue;
+            }
+            if (ch === '/' && next === '/') { lineComment = true; i += 1; continue; }
+            if (ch === '/' && next === '*') { blockComment = true; i += 1; continue; }
+            if (ch === '\'' || ch === '"' || ch === '`') { quote = ch; continue; }
+            if (ch === '{') { depth += 1; continue; }
+            if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    function hasFunction(code, name) {
+        return new RegExp('(^|\\n)\\s*function\\s+' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(').test(code || '');
+    }
+
+    function referencesFunction(code, name) {
+        return new RegExp('(^|[^.\\w$])' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(').test(code || '');
+    }
+
+    function getTopLevelDeclarationNames(code) {
+        const names = Object.create(null);
+        const declarationRe = /(^|\n)\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\b/g;
+        let match;
+        while ((match = declarationRe.exec(code || ''))) names[match[2]] = true;
+        return names;
+    }
+
+    function removeDuplicateTopLevelFunctions(code) {
+        if (!code || typeof code !== 'string') return code;
+        const seen = getTopLevelDeclarationNames(code);
+        const ranges = [];
+        const fnRe = /(^|\n)\s*function\s+([A-Za-z_$][\w$]*)\s*\(/g;
+        let match;
+        while ((match = fnRe.exec(code))) {
+            const linePrefix = match[1] || '';
+            const start = match.index + linePrefix.length;
+            const name = match[2];
+            const openBrace = code.indexOf('{', fnRe.lastIndex);
+            if (openBrace === -1) continue;
+            const end = findBlockEnd(code, openBrace);
+            if (end === -1) continue;
+            if (seen[name]) {
+                let removeStart = start;
+                while (removeStart > 0 && (code[removeStart - 1] === '\n' || code[removeStart - 1] === '\r')) removeStart -= 1;
+                let removeEnd = end + 1;
+                while (removeEnd < code.length && (code[removeEnd] === '\n' || code[removeEnd] === '\r')) removeEnd += 1;
+                ranges.push([removeStart, removeEnd]);
+            } else {
+                seen[name] = true;
+            }
+            fnRe.lastIndex = end + 1;
+        }
+        if (!ranges.length) return code;
+        ranges.sort((a, b) => a[0] - b[0]);
+        let out = '';
+        let pos = 0;
+        for (let i = 0; i < ranges.length; i += 1) {
+            out += code.slice(pos, ranges[i][0]);
+            pos = ranges[i][1];
+        }
+        out += code.slice(pos);
+        return out.replace(/\n{4,}/g, '\n\n\n');
+    }
+
+    const helperSources = {
+        pad2: "function pad2(value) {\n  const number = Math.max(0, Math.floor(Number(value) || 0))\n  return number < 10 ? '0' + number : String(number)\n}\n",
+        clamp: "function clamp(value, min, max) {\n  const number = Number(value)\n  if (!(number === number)) return min\n  return Math.max(min, Math.min(max, number))\n}\n",
+        parseClockMinutes: "function parseClockMinutes(value, fallback) {\n  const match = String(value || '').match(/^(\\d{1,2}):(\\d{2})$/)\n  if (!match) return fallback\n  return (Math.max(0, Math.min(23, parseInt(match[1], 10))) * 60) + Math.max(0, Math.min(59, parseInt(match[2], 10)))\n}\n",
+        minutesText: "function minutesText(totalMinutes) {\n  const safe = Math.max(0, Math.round(Number(totalMinutes) || 0))\n  const hours = Math.floor(safe / 60)\n  const minutes = safe % 60\n  return hours <= 0 ? minutes + 'M' : hours + 'H ' + pad2(minutes) + 'M'\n}\n",
+        getWorkRemainingText: "function getWorkRemainingText(options, fallback) {\n  options = options || {}\n  const now = new Date()\n  const day = now.getDay()\n  if (options.weekdaysOnly && (day === 0 || day === 6)) return 'LIBRE'\n  const start = typeof parseClockMinutes === 'function' ? parseClockMinutes(options.workStart || '08:00', 480) : 480\n  const end = typeof parseClockMinutes === 'function' ? parseClockMinutes(options.workEnd || '15:00', 900) : 900\n  const current = (now.getHours() * 60) + now.getMinutes()\n  const normalizedEnd = end <= start ? end + 1440 : end\n  const normalizedCurrent = current < start && end <= start ? current + 1440 : current\n  if (normalizedCurrent < start) return 'ENTRA EN ' + (typeof minutesText === 'function' ? minutesText(start - normalizedCurrent) : String(start - normalizedCurrent))\n  if (normalizedCurrent >= normalizedEnd) return 'JORNADA OK'\n  return 'SALIDA EN ' + (typeof minutesText === 'function' ? minutesText(normalizedEnd - normalizedCurrent) : String(normalizedEnd - normalizedCurrent))\n}\n",
+        getCountdownText: "function getCountdownText(options, fallback) {\n  const target = new Date((options || {}).target || '')\n  if (!(target.getTime() === target.getTime())) return fallback || 'SIN FECHA'\n  const diff = target.getTime() - Date.now()\n  if (diff <= 0) return 'FINALIZADO'\n  const totalMinutes = Math.floor(diff / 60000)\n  const days = Math.floor(totalMinutes / 1440)\n  const hours = Math.floor((totalMinutes % 1440) / 60)\n  const minutes = totalMinutes % 60\n  return days > 0 ? days + 'D ' + pad2(hours) + ':' + pad2(minutes) : hours + 'H ' + pad2(minutes) + 'M'\n}\n",
+        getMoonPhaseText: "function getMoonPhaseText() {\n  const cycle = 29.53058867\n  const known = new Date(Date.UTC(2000, 0, 6, 18, 14))\n  const days = (Date.now() - known.getTime()) / 86400000\n  const phase = ((days % cycle) + cycle) % cycle\n  if (phase < 1.85) return 'LUNA NUEVA'\n  if (phase < 5.54) return 'CRECIENTE'\n  if (phase < 9.23) return 'CUARTO CREC.'\n  if (phase < 12.92) return 'GIBOSA CREC.'\n  if (phase < 16.61) return 'LUNA LLENA'\n  if (phase < 20.30) return 'GIBOSA MENG.'\n  if (phase < 23.99) return 'CUARTO MENG.'\n  if (phase < 27.68) return 'MENGUANTE'\n  return 'LUNA NUEVA'\n}\n",
+        getDayProgressText: "function getDayProgressText() {\n  const now = new Date()\n  const seconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()\n  return 'DÍA ' + (typeof clamp === 'function' ? clamp(Math.round((seconds / 86400) * 100), 0, 100) : Math.round((seconds / 86400) * 100)) + '%'\n}\n",
+        getTempRangeText: "function getTempRangeText(options, fallback) {\n  options = options || {}\n  let min = Number(options.minFallback) || 18\n  let max = Number(options.maxFallback) || 31\n  try {\n    if (typeof getTempLow === 'function') min = getTempLow(min)\n    else if (typeof readNumber === 'function' && typeof metricSensors !== 'undefined') min = readNumber(metricSensors.weather, ['getMin', 'getMinTemperature'], ['min', 'tempMin', 'minTemp'], min)\n  } catch (err) {}\n  try {\n    if (typeof getTempHigh === 'function') max = getTempHigh(max)\n    else if (typeof readNumber === 'function' && typeof metricSensors !== 'undefined') max = readNumber(metricSensors.weather, ['getMax', 'getMaxTemperature'], ['max', 'tempMax', 'maxTemp'], max)\n  } catch (err) {}\n  if (!(Number(min) === Number(min)) || !(Number(max) === Number(max))) return fallback || '--°/--°'\n  return String(Math.round(min)) + '°/' + String(Math.round(max)) + '°'\n}\n",
+        getWeatherData: "function getWeatherData() {\n  const sensor = typeof metricSensors !== 'undefined' ? metricSensors.weather : null\n  if (!sensor) return null\n  try { if (typeof sensor.getForecastWeather === 'function') return sensor.getForecastWeather() } catch (err) {}\n  try { if (typeof sensor.getWeather === 'function') return sensor.getWeather() } catch (err) {}\n  try { if (typeof sensor.getCurrent === 'function') return sensor.getCurrent() } catch (err) {}\n  return null\n}\n",
+        getTodayForecastItem: "function getTodayForecastItem() {\n  const data = typeof getWeatherData === 'function' ? getWeatherData() : null\n  if (data && data.forecastData && data.forecastData.data && data.forecastData.data[0]) return data.forecastData.data[0]\n  if (data && data.data && data.data[0]) return data.data[0]\n  if (data && data.forecast && data.forecast[0]) return data.forecast[0]\n  return data || null\n}\n",
+        getTodayTideItem: "function getTodayTideItem() {\n  const data = typeof getWeatherData === 'function' ? getWeatherData() : null\n  if (data && data.tideData && data.tideData.data && data.tideData.data[0]) return data.tideData.data[0]\n  if (data && data.tide && data.tide[0]) return data.tide[0]\n  return null\n}\n",
+        getTempHigh: "function getTempHigh(fallback) {\n  const today = typeof getTodayForecastItem === 'function' ? getTodayForecastItem() : null\n  if (today && typeof today.high === 'number') return today.high\n  if (today && typeof today.tempMax === 'number') return today.tempMax\n  if (typeof readNumber === 'function' && typeof metricSensors !== 'undefined') return readNumber(metricSensors.weather, ['getCurrent'], ['high', 'max', 'tempMax', 'maxTemp', 'temperature'], fallback || 0)\n  return fallback || 0\n}\n",
+        getTempLow: "function getTempLow(fallback) {\n  const today = typeof getTodayForecastItem === 'function' ? getTodayForecastItem() : null\n  if (today && typeof today.low === 'number') return today.low\n  if (today && typeof today.tempMin === 'number') return today.tempMin\n  if (typeof readNumber === 'function' && typeof metricSensors !== 'undefined') return readNumber(metricSensors.weather, ['getCurrent'], ['low', 'min', 'tempMin', 'minTemp', 'temperature'], fallback || 0)\n  return fallback || 0\n}\n",
+        fullNumber: "function fullNumber(value, fallback) {\n  const number = Number(value)\n  return number === number ? number : fallback\n}\n",
+        fullSafeRead: "function fullSafeRead(reader, fallback) {\n  try {\n    const value = reader()\n    return value === undefined || value === null ? fallback : value\n  } catch (err) {\n    return fallback\n  }\n}\n",
+        formatDurationValue: "function formatDurationValue(value) {\n  const minutes = Math.max(0, Math.round(Number(value) || 0))\n  return Math.floor(minutes / 60) + ':' + pad2(minutes % 60)\n}\n",
+        formatClockMinutes: "function formatClockMinutes(value, fallback) {\n  let minutes = Number(value)\n  if (!(minutes === minutes)) return fallback || '--:--'\n  minutes = ((Math.round(minutes) % 1440) + 1440) % 1440\n  return pad2(Math.floor(minutes / 60)) + ':' + pad2(minutes % 60)\n}\n",
+        getSleepBasicInfo: "function getSleepBasicInfo() {\n  const sleep = typeof metricSensors !== 'undefined' ? metricSensors.sleep : null\n  if (!sleep) return null\n  try { if (typeof sleep.updateInfo === 'function') sleep.updateInfo() } catch (err) {}\n  try { if (typeof sleep.getBasicInfo === 'function') return sleep.getBasicInfo() } catch (err) {}\n  return null\n}\n",
+        getSleepTotalMinutes: "function getSleepTotalMinutes() {\n  const sleep = typeof metricSensors !== 'undefined' ? metricSensors.sleep : null\n  if (!sleep) return 0\n  try { if (typeof sleep.updateInfo === 'function') sleep.updateInfo() } catch (err) {}\n  try { if (typeof sleep.getTotalTime === 'function') { const value = sleep.getTotalTime(); if (typeof value === 'number' && value > 0) return value } } catch (err) {}\n  const basic = typeof getSleepBasicInfo === 'function' ? getSleepBasicInfo() : null\n  if (basic && typeof basic.startTime === 'number' && typeof basic.endTime === 'number') return Math.max(0, basic.endTime - basic.startTime + 1)\n  return 0\n}\n",
+        getSleepStageMinutes: "function getSleepStageMinutes(modelProp) {\n  const sleep = typeof metricSensors !== 'undefined' ? metricSensors.sleep : null\n  if (!sleep) return 0\n  try { if (typeof sleep.updateInfo === 'function') sleep.updateInfo() } catch (err) {}\n  let stages = null\n  let models = null\n  try { if (typeof sleep.getSleepStageData === 'function') stages = sleep.getSleepStageData() } catch (err) {}\n  try { if (typeof sleep.getSleepStageModel === 'function') models = sleep.getSleepStageModel() } catch (err) {}\n  if (!stages || !models || models[modelProp] === undefined) return 0\n  let minutes = 0\n  for (let i = 0; i < stages.length; i += 1) {\n    const stage = stages[i]\n    if (stage && stage.model === models[modelProp]) minutes += Math.max(0, (Number(stage.stop) || 0) - (Number(stage.start) || 0))\n  }\n  return minutes\n}\n",
+        getSleepStageCount: "function getSleepStageCount() {\n  const sleep = typeof metricSensors !== 'undefined' ? metricSensors.sleep : null\n  if (!sleep) return 0\n  try { if (typeof sleep.updateInfo === 'function') sleep.updateInfo() } catch (err) {}\n  try { const stages = typeof sleep.getSleepStageData === 'function' ? sleep.getSleepStageData() : null; return stages && typeof stages.length === 'number' ? stages.length : 0 } catch (err) { return 0 }\n}\n",
+        getFullHmSensorRaw: "function getFullHmSensorRaw(type, fallback) {\n  return fallback === undefined ? null : fallback\n}\n",
+        getFullHmSensorText: "function getFullHmSensorText(type, fallback, options) {\n  return null\n}\n",
+        probeBluetoothApis: "function probeBluetoothApis() {\n  return false\n}\n",
+        probeSensorExtraMethods: "function probeSensorExtraMethods() {\n  return false\n}\n"
+    };
+
+    const helperOrder = [
+        'pad2', 'clamp', 'parseClockMinutes', 'minutesText', 'getWorkRemainingText', 'getCountdownText',
+        'getMoonPhaseText', 'getDayProgressText', 'getWeatherData', 'getTodayForecastItem', 'getTodayTideItem',
+        'getTempHigh', 'getTempLow', 'getTempRangeText', 'fullNumber', 'fullSafeRead', 'formatDurationValue',
+        'formatClockMinutes', 'getSleepBasicInfo', 'getSleepTotalMinutes', 'getSleepStageMinutes', 'getSleepStageCount',
+        'getFullHmSensorRaw', 'getFullHmSensorText', 'probeBluetoothApis', 'probeSensorExtraMethods'
+    ];
+
+    function appendMissingRuntimeHelpers(code) {
+        let out = code || '';
+        let addedAny = false;
+        let changed = true;
+        let guard = 0;
+        while (changed && guard < 10) {
+            changed = false;
+            guard += 1;
+            helperOrder.forEach(function(name) {
+                if (!helperSources[name] || hasFunction(out, name)) return;
+                if (referencesFunction(out, name)) {
+                    out += '\n' + helperSources[name];
+                    addedAny = true;
+                    changed = true;
+                }
+            });
+        }
+        if (!addedAny) return out;
+        return out.replace(/\n(function pad2\(value\) \{)/, '\n\n/* Helpers añadidos por el editor para evitar referencias no definidas. */\n$1');
+    }
+
+    function removeDanglingDiagnosticCalls(code) {
+        let out = code || '';
+        if (!hasFunction(out, 'probeBluetoothApis')) {
+            out = out.replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado');
+        }
+        if (!hasFunction(out, 'probeSensorExtraMethods')) {
+            out = out.replace(/^\s*probeSensorExtraMethods\(\)\s*$/gm, '    // probeSensorExtraMethods() desactivado');
+        }
+        return out;
+    }
+
+    function normalizeGeneratedWatchfaceCode(code) {
+        let out = String(code || '');
+        out = removeDuplicateTopLevelFunctions(out);
+        out = appendMissingRuntimeHelpers(out);
+        out = removeDuplicateTopLevelFunctions(out);
+        out = removeDanglingDiagnosticCalls(out);
+        return out.replace(/}\s*function/g, '}\n\nfunction').replace(/\n{5,}/g, '\n\n\n');
+    }
+
+    window.normalizeGeneratedWatchfaceCode = normalizeGeneratedWatchfaceCode;
+
+    function normalizeCodeBox() {
+        try {
+            const box = document.getElementById('zepp-code-box');
+            if (!box) return;
+            const current = box.innerText || box.textContent || '';
+            const normalized = normalizeGeneratedWatchfaceCode(current);
+            if (normalized !== current) {
+                box.innerText = normalized;
+                box.textContent = normalized;
+            }
+        } catch (err) {}
+    }
+
+    function patchFunction(name, afterCall) {
+        try {
+            const original = window[name] || (typeof globalThis !== 'undefined' ? globalThis[name] : null);
+            if (typeof original !== 'function' || original.__finalGeneratedSafetyPatched) return;
+            const patched = function() {
+                const result = original.apply(this, arguments);
+                try { afterCall(); } catch (err) {}
+                return typeof result === 'string' ? normalizeGeneratedWatchfaceCode(result) : result;
+            };
+            patched.__finalGeneratedSafetyPatched = true;
+            window[name] = patched;
+            try { globalThis[name] = patched; } catch (err) {}
+            try { eval(name + ' = patched'); } catch (err) {}
+        } catch (err) {}
+    }
+
+    function patchCopyCode() {
+        try {
+            const original = window.copyCode || (typeof globalThis !== 'undefined' ? globalThis.copyCode : null);
+            if (typeof original !== 'function' || original.__finalGeneratedSafetyPatched) return;
+            const patched = function() {
+                normalizeCodeBox();
+                return original.apply(this, arguments);
+            };
+            patched.__finalGeneratedSafetyPatched = true;
+            window.copyCode = patched;
+            try { globalThis.copyCode = patched; } catch (err) {}
+            try { copyCode = patched; } catch (err) {}
+        } catch (err) {}
+    }
+
+    function initFinalGeneratedWatchfaceSafetyPatch() {
+        patchFunction('generateZeppCode', normalizeCodeBox);
+        patchFunction('exportJSON', normalizeCodeBox);
+        patchCopyCode();
+        normalizeCodeBox();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFinalGeneratedWatchfaceSafetyPatch);
+    } else {
+        initFinalGeneratedWatchfaceSafetyPatch();
+    }
+    setTimeout(initFinalGeneratedWatchfaceSafetyPatch, 250);
+    setTimeout(initFinalGeneratedWatchfaceSafetyPatch, 1000);
+    setTimeout(initFinalGeneratedWatchfaceSafetyPatch, 2500);
+})();
+
+/*
+ * Ajuste final: copiar estilos no debe copiar el color del texto.
+ * El orden y las categorías de widgets se gestionan en index.html.
+ */
+(function () {
+    if (window.__copyStyleWithoutTextColorInstalled) return;
+    window.__copyStyleWithoutTextColorInstalled = true;
+
+    function patchCopyStyleWithoutTextColor() {
+        try {
+            const currentCopyStyle = window.copyStyle || (typeof copyStyle !== 'undefined' ? copyStyle : null);
+            if (typeof currentCopyStyle !== 'function' || currentCopyStyle.__noTextColorPatched) return;
+
+            const patched = function (source, target) {
+                const hadColor = Object.prototype.hasOwnProperty.call(target, 'color');
+                const previousColor = target.color;
+                const hadTitleColor = Object.prototype.hasOwnProperty.call(target, 'titleColor');
+                const previousTitleColor = target.titleColor;
+
+                const result = currentCopyStyle.apply(this, arguments);
+
+                if (hadColor) target.color = previousColor;
+                else delete target.color;
+
+                if (hadTitleColor) target.titleColor = previousTitleColor;
+                else delete target.titleColor;
+
+                return result;
+            };
+            patched.__noTextColorPatched = true;
+            window.copyStyle = patched;
+            try { globalThis.copyStyle = patched; } catch (err) {}
+            try { copyStyle = patched; } catch (err) {}
+        } catch (err) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', patchCopyStyleWithoutTextColor);
+    } else {
+        patchCopyStyleWithoutTextColor();
+    }
+    setTimeout(patchCopyStyleWithoutTextColor, 250);
 })();
