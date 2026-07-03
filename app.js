@@ -1,3 +1,9 @@
+// Zepp OS watchface runtime no define CommonJS module/exports.
+// Estos guards evitan ReferenceError si algún wrapper generado los toca.
+var module = (typeof module !== 'undefined') ? module : { exports: {} };
+var exports = (typeof exports !== 'undefined') ? exports : module.exports;
+
+// AMAZFIT FIX MODULE ERROR + KEEP SLEEP PAI
 // AMAZFIT KEEP SLEEP AND PAI - best effort Active 3 Premium
 // AMAZFIT WORKING WIDGETS - Active 3 Premium logs 2026-07-03
 // --- DEBUG SENSORIAL DEL CÓDIGO EXPORTADO ---
@@ -5086,7 +5092,7 @@ try {
     const workingTypes = [
         'time','hour','minute','second',
         'date','day','month','year','weekday','day-of-year','week',
-        'steps','calories','distance','heart','battery','stress','spo2','sleep','pai',
+        'steps','calories','distance','heart','battery','stress','spo2','sleep','pai','sleep','pai',
         'weather','temperature','sunrise','sunset','bluetooth',
         'temp-range','weather-icon','sun-position','step-goal','battery-icon',
         'date-circle','work-remaining','day-progress','moon-phase','countdown',
@@ -5167,8 +5173,6 @@ try {
 
         // No crear sensores que ya sabemos que no existen o no devuelven datos útiles.
         code = code
-            .replace("  sleep: ['SLEEP'],\n", "  sleep: [],\n")
-            .replace("  pai: ['PAI'],\n", "  pai: [],\n")
             .replace("  altitude: ['ALTITUDE'],\n", "  altitude: [],\n")
             .replace("  pressure: ['PRESSURE', 'BAROMETER'],\n", "  pressure: [],\n")
             .replace("  alarm: ['ALARM'],\n", "  alarm: [],\n")
@@ -5323,7 +5327,7 @@ try {
     const WORKING_TYPES = [
         'time','hour','minute','second',
         'date','day','month','year','weekday','week','day-of-year',
-        'battery','steps','heart','calories','distance','stress','spo2','sleep','pai',
+        'battery','steps','heart','calories','distance','stress','spo2','sleep','pai','sleep','pai',
         'weather','temperature','temp-range','sunrise','sunset','sun-position',
         'bluetooth',
         'moon-phase','countdown','work-remaining','day-progress',
@@ -5524,3 +5528,110 @@ try {
         }
     };
 })();
+
+
+
+/*
+ * --- PATCH SLEEP/PAI SIEMPRE VISIBLES + SIN MODULE ERROR ---
+ * Logs actuales:
+ * - sleep existe, pero solo se ve sleep.name
+ * - pai existe, pero solo se ve pai.name
+ * Por tanto se mantienen como widgets y muestran:
+ * - valor real si algún método/propiedad devuelve número
+ * - si no, "SLEEP" / "PAI" para confirmar que el sensor existe
+ */
+(function installSleepPaiAlwaysPatch() {
+    if (typeof window === 'undefined') return;
+    if (window.__sleepPaiAlwaysPatchInstalled) return;
+    window.__sleepPaiAlwaysPatchInstalled = true;
+
+    function patchSleepPaiGeneratedCode(code) {
+        if (!code || typeof code !== 'string') return code;
+
+        // Guard CommonJS por si Zeus carga como ?commonjs-entry en algunos contextos.
+        if (!code.includes('Zepp CommonJS compatibility guard')) {
+            code = "var module = (typeof module !== 'undefined') ? module : { exports: {} };\\n" +
+                   "var exports = (typeof exports !== 'undefined') ? exports : module.exports;\\n" +
+                   "// Zepp CommonJS compatibility guard\\n" + code;
+        }
+
+        // Nunca desactivar Sleep/PAI en el mapa de sensores.
+        code = code
+          .replace("  sleep: [],", "  sleep: ['SLEEP'],")
+          .replace("  pai: [],", "  pai: ['PAI'],");
+
+        // Añade helpers si no existen.
+        if (!code.includes('function readSleepBestEffort(')) {
+            const helper = `
+function readSleepBestEffort(source) {
+  if (!source) return 'SLEEP'
+  try {
+    var v = readNumber(source, ['getTotal', 'getToday', 'getCurrent', 'getLast'], ['total', 'today', 'duration', 'minutes', 'current', 'last', 'value'], null)
+    if (v !== null && v !== undefined && !isNaN(v) && Number(v) > 0) {
+      return formatDurationValue(Number(v))
+    }
+  } catch (e) {}
+  try {
+    if (source.name) return 'SLEEP'
+  } catch (e) {}
+  return 'SLEEP'
+}
+
+function readPaiBestEffort(source) {
+  if (!source) return 'PAI'
+  try {
+    var v = readNumber(source, ['getCurrent', 'getToday', 'getTotal', 'getLast'], ['current', 'today', 'total', 'last', 'pai', 'value'], null)
+    if (v !== null && v !== undefined && !isNaN(v) && Number(v) > 0) {
+      return String(Math.round(Number(v)))
+    }
+  } catch (e) {}
+  try {
+    if (source.name) return 'PAI'
+  } catch (e) {}
+  return 'PAI'
+}
+`;
+            if (code.includes('function getMetricText')) {
+                code = code.replace('function getMetricText', helper + '\nfunction getMetricText');
+            } else {
+                code += '\n' + helper + '\n';
+            }
+        }
+
+        // Cambia salida de texto para que no sea -- ni 0 engañoso.
+        code = code
+          .replace("  if (type === 'sleep') return fallback || '--'", "  if (type === 'sleep') return readSleepBestEffort(metricSensors.sleep)")
+          .replace("  if (type === 'pai') return fallback || '--'", "  if (type === 'pai') return readPaiBestEffort(metricSensors.pai)")
+          .replace("  if (type === 'sleep') return formatDurationValue(getRawMetric('sleep', 0))", "  if (type === 'sleep') return readSleepBestEffort(metricSensors.sleep)")
+          .replace("  if (type === 'pai') return String(getRawMetric('pai', 0))", "  if (type === 'pai') return readPaiBestEffort(metricSensors.pai)");
+
+        // Para progress/rings, si no hay número, usar 0 pero el texto seguirá indicando SLEEP/PAI.
+        code = code
+          .replace("  if (type === 'sleep') return fallback", "  if (type === 'sleep') return 0")
+          .replace("  if (type === 'pai') return fallback", "  if (type === 'pai') return 0");
+
+        return code;
+    }
+
+    function patchGenerator(name) {
+        const original = window[name];
+        if (typeof original !== 'function' || original.__sleepPaiAlwaysPatched) return;
+        const wrapped = function() {
+            const result = original.apply(this, arguments);
+            try {
+                const box = document.getElementById('zepp-code-box');
+                if (box && box.innerText) box.innerText = patchSleepPaiGeneratedCode(box.innerText);
+                if (box && box.value) box.value = patchSleepPaiGeneratedCode(box.value);
+            } catch (_) {}
+            return typeof result === 'string' ? patchSleepPaiGeneratedCode(result) : result;
+        };
+        wrapped.__sleepPaiAlwaysPatched = true;
+        window[name] = wrapped;
+        try { globalThis[name] = wrapped; } catch (_) {}
+    }
+
+    ['generateZeppCode', 'createZeppCode', 'buildZeppCode', 'generateWatchfaceCode'].forEach(patchGenerator);
+
+    window.amazfitPatchSleepPaiGeneratedCode = patchSleepPaiGeneratedCode;
+})();
+
