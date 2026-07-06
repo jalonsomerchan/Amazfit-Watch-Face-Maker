@@ -279,6 +279,8 @@
                                 class="w-4 h-4 text-purple-300"></i><span>Alarma</span></button>
                         <button onclick="addElement('bluetooth')" class="widget-tool"><i data-lucide="bluetooth"
                                 class="w-4 h-4 text-blue-400"></i><span>Bluetooth</span></button>
+                        <button onclick="addElement('phone-connected')" class="widget-tool"><i data-lucide="smartphone"
+                                class="w-4 h-4 text-emerald-300"></i><span>Teléfono</span></button>
                         <button onclick="addElement('wear')" class="widget-tool"><i data-lucide="watch"
                                 class="w-4 h-4 text-emerald-300"></i><span>Puesto</span></button>
                         <button onclick="addElement('wear-code')" class="widget-tool"><i data-lucide="binary"
@@ -478,6 +480,12 @@
                         <i data-lucide="bluetooth"
                             class="w-4 h-4 text-blue-400 mb-1 group-hover:scale-110 transition"></i>
                         <div class="text-[11px] font-bold">Bluetooth</div>
+                    </button>
+                    <button onclick="addElement('phone-connected')"
+                        class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
+                        <i data-lucide="smartphone"
+                            class="w-4 h-4 text-emerald-300 mb-1 group-hover:scale-110 transition"></i>
+                        <div class="text-[11px] font-bold">Teléfono</div>
                     </button>
                     <button onclick="addElement('stopwatch')"
                         class="p-2.5 bg-slate-800/40 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 rounded-xl text-left transition group">
@@ -793,6 +801,17 @@
                                     </div>
                                 </div>
                             </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Margen bajo título</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="range" id="prop-title-margin-slider" min="0" max="80"
+                                        oninput="updateElementProp('titleMarginBottom', parseInt(this.value) || 0)"
+                                        class="flex-1 accent-cyan-500">
+                                    <input type="number" id="prop-title-margin" min="0" max="80"
+                                        oninput="updateElementProp('titleMarginBottom', parseInt(this.value) || 0)"
+                                        class="w-14 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-center font-mono">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -835,6 +854,42 @@
                                 </select>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Acción táctil en el reloj -->
+                    <div id="prop-tap-container" class="space-y-2 border-t border-slate-800/80 pt-3">
+                        <label class="text-[10px] text-cyan-300 font-bold block uppercase">Al pulsar</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">Acción</label>
+                                <select id="prop-tap-action" onchange="updateElementProp('tapAction', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs">
+                                    <option value="none">Nada</option>
+                                    <option value="open-app">Abrir app</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-1">App</label>
+                                <select id="prop-tap-app" onchange="updateElementProp('tapApp', this.value)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs">
+                                    <option value="heart">Ritmo cardíaco</option>
+                                    <option value="activity">Actividad</option>
+                                    <option value="workout">Entrenamiento</option>
+                                    <option value="weather">Clima</option>
+                                    <option value="sleep">Sueño</option>
+                                    <option value="spo2">SpO2</option>
+                                    <option value="stress">Estrés</option>
+                                    <option value="pai">PAI</option>
+                                    <option value="alarm">Alarma</option>
+                                    <option value="music">Música</option>
+                                    <option value="settings">Ajustes</option>
+                                    <option value="custom">Personalizada</option>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="text" id="prop-tap-custom" placeholder="ID o ruta de app Zepp"
+                            oninput="updateElementProp('tapCustomTarget', this.value)"
+                            class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs hidden">
                     </div>
 
                     <!-- Propiedades específicas de Barras de Progreso -->

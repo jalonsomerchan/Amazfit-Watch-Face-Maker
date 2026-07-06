@@ -3,7 +3,7 @@
 // --- DEBUG SENSORIAL DEL CÓDIGO EXPORTADO ---
 // true: muestra estado de sensores al arrancar y cada pocos ticks.
 // false: genera una esfera más limpia para producción.
-const AMAZFIT_SENSOR_DEBUG = true;
+const AMAZFIT_SENSOR_DEBUG = false;
 
 // true: prueba muchas propiedades/métodos al arrancar. Útil para investigar.
 // false: no hace pruebas largas ni spam de consola.
@@ -20,6 +20,7 @@ let dragOffset = { x: 0, y: 0 };
 let resizeState = { startX: 0, startY: 0, width: 0, height: 0 };
 let showGuides = false;
 const GRID_SIZE = 10;
+const TITLE_MARGIN_DEFAULT = 2;
 const STORAGE_KEYS = {
     watchModel: 'amazfit-editor:last-watch-model',
     watchShape: 'amazfit-editor:last-watch-shape',
@@ -425,19 +426,33 @@ function supportsOptionalTitle(type) {
     return !['label', 'arc-progress', 'circle', 'stroke-rect'].includes(type);
 }
 
+function getTitleMarginBottom(element) {
+    if (!element || !element.titleEnabled || !supportsOptionalTitle(element.type)) return 0;
+    const value = parseInt(element.titleMarginBottom, 10);
+    return Math.max(0, value === value ? value : TITLE_MARGIN_DEFAULT);
+}
+
+function getTitlePreviewHtml(element, className = 'leading-none w-full') {
+    if (!element || !element.titleEnabled || !supportsOptionalTitle(element.type)) return '';
+    return `<div class="${className}" style="font-family: ${getCssFontFamily(element.titleFontFamily || 'font-rajdhani')}; font-size: ${(element.titleFontSize || 10) * SCALE}px; color: ${element.titleColor || '#94a3b8'}; text-align: ${element.textAlign || 'center'}; margin-bottom: ${getTitleMarginBottom(element) * SCALE}px;">${element.titleText || ''}</div>`;
+}
+
 function ensureTitleDefaults(element) {
     if (element.titleEnabled === undefined) element.titleEnabled = false;
     if (!element.titleText) element.titleText = getMetricLabel(element.progressType || element.type);
     if (!element.titleFontFamily) element.titleFontFamily = 'font-rajdhani';
     if (!element.titleFontSize) element.titleFontSize = 10;
     if (!element.titleColor) element.titleColor = '#94a3b8';
+    if (element.titleMarginBottom === undefined || element.titleMarginBottom === null || element.titleMarginBottom === '') element.titleMarginBottom = TITLE_MARGIN_DEFAULT;
+    element.titleMarginBottom = Math.max(0, parseInt(element.titleMarginBottom, 10) || 0);
 }
 
 function ensureStatusDefaults(element) {
-    if (element.type !== 'bluetooth') return;
-    if (!element.statusOkText) element.statusOkText = 'BT OK';
-    if (!element.statusKoText) element.statusKoText = 'BT KO';
-    if (!element.statusOkColor) element.statusOkColor = '#60a5fa';
+    if (!element || !['bluetooth', 'phone-connected'].includes(element.type)) return;
+    const isPhone = element.type === 'phone-connected';
+    if (!element.statusOkText) element.statusOkText = isPhone ? 'TEL OK' : 'BT OK';
+    if (!element.statusKoText) element.statusKoText = isPhone ? 'TEL KO' : 'BT KO';
+    if (!element.statusOkColor) element.statusOkColor = isPhone ? '#34d399' : '#60a5fa';
     if (!element.statusKoColor) element.statusKoColor = '#f87171';
     if (!element.statusPreview) element.statusPreview = 'ok';
     element.text = element.statusPreview === 'ko' ? element.statusKoText : element.statusOkText;
@@ -461,6 +476,13 @@ function ensureMetricAffixDefaults(element) {
     if (!isDynamicMetricType(element.type)) return;
     if (element.metricPrefix === undefined) element.metricPrefix = '';
     if (element.metricSuffix === undefined) element.metricSuffix = '';
+}
+
+function ensureTapActionDefaults(element) {
+    if (!element) return;
+    if (!element.tapAction) element.tapAction = 'none';
+    if (!element.tapApp) element.tapApp = 'heart';
+    if (element.tapCustomTarget === undefined || element.tapCustomTarget === null) element.tapCustomTarget = '';
 }
 
 function isProgressWidget(type) {
@@ -600,7 +622,7 @@ function hasAutoContentHeight(element) {
 
 function getTitleContentHeight(element) {
     if (!element || !element.titleEnabled || !supportsOptionalTitle(element.type)) return 0;
-    return getMeasuredTextHeight(element.titleText || '', element.titleFontFamily || 'font-rajdhani', element.titleFontSize || 10, 'bold') + 2;
+    return getMeasuredTextHeight(element.titleText || '', element.titleFontFamily || 'font-rajdhani', element.titleFontSize || 10, 'bold') + getTitleMarginBottom(element);
 }
 
 function getTextContentHeight(element) {
@@ -705,6 +727,7 @@ function normalizeElement(element) {
     ensureDateDefaults(element);
     ensureTimeDefaults(element);
     ensureMetricAffixDefaults(element);
+    ensureTapActionDefaults(element);
     fitElementHeightToContent(element);
     return element;
 }
@@ -831,6 +854,7 @@ function copyStyle(source, target) {
             'titleEnabled',
             'titleFontFamily',
             'titleFontSize',
+            'titleMarginBottom',
             'titleColor'
         ].forEach((prop) => {
             if (source[prop] !== undefined) target[prop] = source[prop];
@@ -1350,7 +1374,7 @@ function renderCanvas() {
 
             div.innerHTML = `
                 <div class="w-full flex flex-col gap-1 px-1">
-                    ${el.titleEnabled ? `<div class="leading-none" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}
+                    ${getTitlePreviewHtml(el, 'leading-none')}
                     <div class="flex justify-between text-[8px] tracking-wide font-bold opacity-80" style="color: ${activeColor}">
                         <span>${typeLabel}</span>
                         <span>${val}%</span>
@@ -1396,7 +1420,7 @@ function renderCanvas() {
             const strokeColor = el.color || '#ef4444';
             div.innerHTML = `
                 <div class="w-full h-full flex flex-col justify-between">
-                    ${el.titleEnabled ? `<div class="leading-none" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}
+                    ${getTitlePreviewHtml(el, 'leading-none')}
                     <svg class="w-full h-full" viewBox="0 0 100 40" preserveAspectRatio="none">
                         <path d="M0,20 L15,20 L22,4 L30,36 L36,20 L48,20 L54,12 L60,28 L66,20 L100,20" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" />
                     </svg>
@@ -1406,17 +1430,17 @@ function renderCanvas() {
         else if (el.type === 'image') {
             // Imagen cargada o preset emoji
             if (el.imageSrc) {
-                div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<img src="${el.imageSrc}" class="w-full h-full object-contain pointer-events-none">`;
+                div.innerHTML = `${getTitlePreviewHtml(el)}<img src="${el.imageSrc}" class="w-full h-full object-contain pointer-events-none">`;
             } else {
                 // Emoji decorativo centrado
-                div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<span style="font-size: ${(el.height * SCALE) * 0.7}px">${el.text}</span>`;
+                div.innerHTML = `${getTitlePreviewHtml(el)}<span style="font-size: ${(el.height * SCALE) * 0.7}px">${el.text}</span>`;
             }
         }
         else {
             // Widget estándar de Texto (Hora, Fecha, Pasos, Latidos, Batería, Texto Libre)
             const titleHeight = getTitleContentHeight(el);
             const contentHeight = Math.max(1, el.height - titleHeight);
-            div.innerHTML = `${el.titleEnabled ? `<div class="leading-none w-full" style="font-family: ${getCssFontFamily(el.titleFontFamily || 'font-rajdhani')}; font-size: ${(el.titleFontSize || 10) * SCALE}px; color: ${el.titleColor || '#94a3b8'}; text-align: ${el.textAlign || 'center'};">${el.titleText || ''}</div>` : ''}<div class="leading-none w-full" style="${getTextPreviewStyle(el, contentHeight)}"><span style="display:block; width:100%; ${getTextOverflowCss(el)}">${getElementDisplayText(el)}</span></div>`;
+            div.innerHTML = `${getTitlePreviewHtml(el)}<div class="leading-none w-full" style="${getTextPreviewStyle(el, contentHeight)}"><span style="display:block; width:100%; ${getTextOverflowCss(el)}">${getElementDisplayText(el)}</span></div>`;
         }
 
         if (selectedElementId === el.id && !styleCopyTargetId) {
@@ -1678,6 +1702,7 @@ function selectElement(id) {
     const titleContainer = document.getElementById('prop-title-container');
     const titleFields = document.getElementById('prop-title-fields');
     const statusContainer = document.getElementById('prop-status-container');
+    const tapContainer = document.getElementById('prop-tap-container');
 
     // Default visible/hidden
     textContainer.classList.add('hidden');
@@ -1693,6 +1718,7 @@ function selectElement(id) {
     titleContainer.classList.toggle('hidden', !supportsOptionalTitle(element.type));
     titleFields.classList.toggle('hidden', !element.titleEnabled);
     statusContainer.classList.add('hidden');
+    if (tapContainer) tapContainer.classList.remove('hidden');
 
     document.getElementById('prop-title-enabled').checked = !!element.titleEnabled;
     document.getElementById('prop-title-text').value = element.titleText || '';
@@ -1701,6 +1727,18 @@ function selectElement(id) {
     document.getElementById('prop-title-size-slider').value = element.titleFontSize || 10;
     document.getElementById('prop-title-color').value = element.titleColor || '#94a3b8';
     document.getElementById('prop-title-color-hex').value = element.titleColor || '#94a3b8';
+    document.getElementById('prop-title-margin').value = getTitleMarginBottom(element);
+    document.getElementById('prop-title-margin-slider').value = getTitleMarginBottom(element);
+
+    const tapAction = document.getElementById('prop-tap-action');
+    const tapApp = document.getElementById('prop-tap-app');
+    const tapCustom = document.getElementById('prop-tap-custom');
+    if (tapAction) tapAction.value = element.tapAction || 'none';
+    if (tapApp) tapApp.value = element.tapApp || 'heart';
+    if (tapCustom) {
+        tapCustom.value = element.tapCustomTarget || '';
+        tapCustom.classList.toggle('hidden', (element.tapAction || 'none') !== 'open-app' || (element.tapApp || 'heart') !== 'custom');
+    }
 
     if (element.type === 'label' || isDynamicMetricType(element.type)) {
         textContainer.classList.remove('hidden');
@@ -1742,11 +1780,11 @@ function selectElement(id) {
         document.getElementById('prop-text').value = getElementDisplayText(element);
     }
 
-    if (element.type === 'bluetooth') {
+    if (['bluetooth', 'phone-connected'].includes(element.type)) {
         statusContainer.classList.remove('hidden');
-        document.getElementById('prop-status-ok-text').value = element.statusOkText || 'BT OK';
-        document.getElementById('prop-status-ko-text').value = element.statusKoText || 'BT KO';
-        document.getElementById('prop-status-ok-color').value = element.statusOkColor || '#60a5fa';
+        document.getElementById('prop-status-ok-text').value = element.statusOkText || (element.type === 'phone-connected' ? 'TEL OK' : 'BT OK');
+        document.getElementById('prop-status-ko-text').value = element.statusKoText || (element.type === 'phone-connected' ? 'TEL KO' : 'BT KO');
+        document.getElementById('prop-status-ok-color').value = element.statusOkColor || (element.type === 'phone-connected' ? '#34d399' : '#60a5fa');
         document.getElementById('prop-status-ko-color').value = element.statusKoColor || '#f87171';
         document.getElementById('prop-status-preview').value = element.statusPreview || 'ok';
     }
@@ -1832,12 +1870,24 @@ function updateElementProp(key, value) {
     }
 
     if (key === 'titleEnabled') {
+        if (value && (element.titleMarginBottom === undefined || element.titleMarginBottom === null || element.titleMarginBottom === '')) {
+            element.titleMarginBottom = TITLE_MARGIN_DEFAULT;
+        }
         document.getElementById('prop-title-fields').classList.toggle('hidden', !value);
+        document.getElementById('prop-title-margin').value = getTitleMarginBottom(element);
+        document.getElementById('prop-title-margin-slider').value = getTitleMarginBottom(element);
     }
 
     if (key === 'titleFontSize') {
         document.getElementById('prop-title-size').value = value;
         document.getElementById('prop-title-size-slider').value = value;
+    }
+
+    if (key === 'titleMarginBottom') {
+        const normalized = Math.max(0, parseInt(value, 10) || 0);
+        element.titleMarginBottom = normalized;
+        document.getElementById('prop-title-margin').value = normalized;
+        document.getElementById('prop-title-margin-slider').value = normalized;
     }
 
     if (key === 'titleColor') {
@@ -1854,6 +1904,13 @@ function updateElementProp(key, value) {
 
     if (key === 'textAlign') {
         updateAlignButtons(value);
+    }
+
+    if (key === 'tapAction' || key === 'tapApp') {
+        const tapCustom = document.getElementById('prop-tap-custom');
+        if (tapCustom) {
+            tapCustom.classList.toggle('hidden', (element.tapAction || 'none') !== 'open-app' || (element.tapApp || 'heart') !== 'custom');
+        }
     }
 
     normalizeElement(element);
@@ -3243,6 +3300,25 @@ function generateZeppCode() {
         return (hours * 60) + minutes;
     }
 
+    function normalizeClockText(value, fallback) {
+        const match = String(value || '').match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+        if (!match) return fallback;
+        const hours = Math.max(0, Math.min(23, parseInt(match[1], 10)));
+        const minutes = Math.max(0, Math.min(59, parseInt(match[2], 10)));
+        return `${pad2(hours)}:${pad2(minutes)}`;
+    }
+
+    function isWeekday(date) {
+        const day = date.getDay();
+        return day >= 1 && day <= 5;
+    }
+
+    function getPreviousDate(date) {
+        const previous = new Date(date.getTime());
+        previous.setDate(previous.getDate() - 1);
+        return previous;
+    }
+
     function minutesToText(totalMinutes) {
         const safe = Math.max(0, Math.round(totalMinutes));
         const hours = Math.floor(safe / 60);
@@ -3253,18 +3329,30 @@ function generateZeppCode() {
 
     function formatWorkRemainingForDisplay(element, date = new Date()) {
         const weekdaysOnly = element.workWeekdaysOnly !== false;
-        const day = date.getDay();
-        if (weekdaysOnly && (day === 0 || day === 6)) return 'LIBRE';
-
-        const start = parseClockToMinutes(element.workStart || '08:00', 8 * 60);
-        const end = parseClockToMinutes(element.workEnd || '15:00', 15 * 60);
+        const startText = normalizeClockText(element.workStart, '08:00');
+        const endText = normalizeClockText(element.workEnd, '15:00');
+        const start = parseClockToMinutes(startText, 8 * 60);
+        const end = parseClockToMinutes(endText, 15 * 60);
         const now = (date.getHours() * 60) + date.getMinutes();
-        const normalizedEnd = end <= start ? end + 1440 : end;
-        const normalizedNow = now < start && end <= start ? now + 1440 : now;
+        const crossesMidnight = end <= start;
 
-        if (normalizedNow < start) return `ENTRA EN ${minutesToText(start - normalizedNow)}`;
-        if (normalizedNow >= normalizedEnd) return 'JORNADA OK';
-        return `SALIDA EN ${minutesToText(normalizedEnd - normalizedNow)}`;
+        if (weekdaysOnly && !isWeekday(date)) {
+            const previousWasWorkday = isWeekday(getPreviousDate(date));
+            if (crossesMidnight && previousWasWorkday && now < end) {
+                return `SALIDA EN ${minutesToText(end - now)}`;
+            }
+            return 'LIBRE';
+        }
+
+        if (crossesMidnight) {
+            if (now >= start) return `SALIDA EN ${minutesToText((end + 1440) - now)}`;
+            if (now < end) return `SALIDA EN ${minutesToText(end - now)}`;
+            return `ENTRA EN ${minutesToText(start - now)}`;
+        }
+
+        if (now < start) return `ENTRA EN ${minutesToText(start - now)}`;
+        if (now >= end) return 'JORNADA OK';
+        return `SALIDA EN ${minutesToText(end - now)}`;
     }
 
     function formatCountdownForDisplay(element, date = new Date()) {
@@ -3378,8 +3466,8 @@ function generateZeppCode() {
             element.text = formatCountdownForDisplay(element);
         }
         if (element.type === 'work-remaining') {
-            element.workStart = element.workStart || '08:00';
-            element.workEnd = element.workEnd || '15:00';
+            element.workStart = normalizeClockText(element.workStart, '08:00');
+            element.workEnd = normalizeClockText(element.workEnd, '15:00');
             element.workWeekdaysOnly = element.workWeekdaysOnly !== false;
             element.text = formatWorkRemainingForDisplay(element);
         }
@@ -3637,7 +3725,7 @@ function generateZeppCode() {
     }
 
     function renderAdvancedVisualHtml(element) {
-        const title = element.titleEnabled ? `<div class="leading-none w-full" style="font-family:${getCssFontFamily(element.titleFontFamily || 'font-rajdhani')};font-size:${(element.titleFontSize || 10) * SCALE}px;color:${element.titleColor || '#94a3b8'};text-align:${element.textAlign || 'center'};">${escapeHtml(element.titleText || '')}</div>` : '';
+        const title = element.titleEnabled ? `<div class="leading-none w-full" style="font-family:${getCssFontFamily(element.titleFontFamily || 'font-rajdhani')};font-size:${(element.titleFontSize || 10) * SCALE}px;color:${element.titleColor || '#94a3b8'};text-align:${element.textAlign || 'center'};margin-bottom:${getTitleMarginBottom(element) * SCALE}px;">${escapeHtml(element.titleText || '')}</div>` : '';
         const contentHeight = Math.max(1, element.height - getTitleContentHeight(element));
         const w = Math.max(1, element.width * SCALE);
         const h = Math.max(1, contentHeight * SCALE);
@@ -3793,7 +3881,9 @@ function generateZeppCode() {
 
     getGeneratedTextExpression = function (element) {
         if (element.type === 'work-remaining') {
-            return wrapGeneratedMetricText(element, `getMetricText('work-remaining', '${escapeGeneratedText(formatWorkRemainingForDisplay(element))}', { workStart: '${escapeGeneratedText(element.workStart || '08:00')}', workEnd: '${escapeGeneratedText(element.workEnd || '15:00')}', weekdaysOnly: ${element.workWeekdaysOnly !== false} })`);
+            const workStart = normalizeClockText(element.workStart, '08:00');
+            const workEnd = normalizeClockText(element.workEnd, '15:00');
+            return wrapGeneratedMetricText(element, `getMetricText('work-remaining', '${escapeGeneratedText(formatWorkRemainingForDisplay(element))}', { workStart: '${escapeGeneratedText(workStart)}', workEnd: '${escapeGeneratedText(workEnd)}', weekdaysOnly: ${element.workWeekdaysOnly !== false} })`);
         }
         if (element.type === 'countdown') {
             return wrapGeneratedMetricText(element, `getMetricText('countdown', '${escapeGeneratedText(formatCountdownForDisplay(element))}', { target: '${escapeGeneratedText(element.countdownTarget || getDefaultCountdownTarget())}' })`);
@@ -3932,7 +4022,7 @@ function generateZeppCode() {
         }
         container.classList.remove('hidden');
         const input = (label, key, type = 'text', attrs = '') => `
-            <div><label class="advanced-label">${label}</label><input class="advanced-field" type="${type}" value="${escapeHtml(element[key] ?? '')}" ${attrs} oninput="updateElementProp('${key}', this.type === 'number' ? parseFloat(this.value) : this.value)"></div>`;
+            <div><label class="advanced-label">${label}</label><input class="advanced-field" type="${type}" value="${escapeHtml(element[key] ?? '')}" ${attrs} oninput="updateElementProp('${key}', this.type === 'number' ? parseFloat(this.value) : this.value)" onchange="updateElementProp('${key}', this.type === 'number' ? parseFloat(this.value) : this.value)"></div>`;
         const checkbox = (label, key) => `
             <label class="flex items-center gap-2 text-[10px] text-slate-300 font-bold uppercase"><input type="checkbox" class="accent-cyan-500" ${element[key] ? 'checked' : ''} onchange="updateElementProp('${key}', this.checked)">${label}</label>`;
         const select = (label, key, options) => `
@@ -4246,7 +4336,7 @@ function generateZeppCode() {
     function drawAdvancedElementOnCanvas(ctx, element, width, height) {
         const color = element.color || '#fff';
         const bg = element.progressBgColor || '#1e293b';
-        const titleOffset = element.titleEnabled ? Math.max(0, element.titleFontSize || 10) + 2 : 0;
+        const titleOffset = getTitleContentHeight(element);
         if (element.titleEnabled) {
             ctx.fillStyle = element.titleColor || '#94a3b8';
             ctx.font = getCanvasFont(element.titleFontFamily || 'font-rajdhani', element.titleFontSize || 10, 'bold');
@@ -4719,6 +4809,683 @@ function getTempRangeText(options, fallback) {
     });
 
     window.AMAZFIT_ADVANCED_WIDGETS_VERSION = ADVANCED_VERSION;
+})();
+
+/*
+ * Fix final para "Salida del trabajo".
+ * Usa la hora sincronizada del reloj/teléfono cuando el sensor TIME existe,
+ * respeta el toggle "Solo días de diario" y conserva la hora configurada.
+ */
+(function installWorkRemainingScheduleFix() {
+    if (typeof window === 'undefined') return;
+    if (window.__workRemainingScheduleFixInstalled) return;
+    window.__workRemainingScheduleFixInstalled = true;
+
+    const WORK_REMAINING_RUNTIME = `function parseClockMinutes(value, fallback) {
+  const match = String(value || '').match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?$/)
+  if (!match) return fallback
+  return (Math.max(0, Math.min(23, parseInt(match[1], 10))) * 60) + Math.max(0, Math.min(59, parseInt(match[2], 10)))
+}
+function minutesText(totalMinutes) {
+  const safe = Math.max(0, Math.round(Number(totalMinutes) || 0))
+  const hours = Math.floor(safe / 60)
+  const minutes = safe % 60
+  return hours <= 0 ? minutes + 'M' : hours + 'H ' + pad2(minutes) + 'M'
+}
+function readWorkTimeUtc() {
+  const time = typeof metricSensors !== 'undefined' ? metricSensors.time : null
+  if (!time) return null
+  try {
+    if (typeof readDirectNumber === 'function') {
+      const direct = readDirectNumber(time, ['utc', 'time', 'current', 'value'], null)
+      if (typeof direct === 'number' && direct === direct && direct > 0) return direct
+    }
+  } catch (err) {}
+  try {
+    if (typeof readNumber === 'function') {
+      const value = readNumber(time, ['getCurrent', 'getTime'], ['utc', 'time', 'current', 'value'], null)
+      if (typeof value === 'number' && value === value && value > 0) return value
+    }
+  } catch (err) {}
+  try {
+    const value = Number(time.utc || time.time || time.current || time.value)
+    if (value === value && value > 0) return value
+  } catch (err) {}
+  return null
+}
+function getWorkNowDate() {
+  const utc = readWorkTimeUtc()
+  if (typeof utc === 'number' && utc === utc && utc > 0) {
+    return new Date(utc < 1000000000000 ? utc * 1000 : utc)
+  }
+  return new Date()
+}
+function isWorkWeekday(date) {
+  const day = date.getDay()
+  return day >= 1 && day <= 5
+}
+function previousWorkDate(date) {
+  const previous = new Date(date.getTime())
+  previous.setDate(previous.getDate() - 1)
+  return previous
+}
+function isWeekdaysOnlyEnabled(value) {
+  return value !== false && value !== 'false' && value !== 0 && value !== '0'
+}
+function getWorkRemainingText(options, fallback) {
+  options = options || {}
+  const now = getWorkNowDate()
+  const weekdaysOnly = isWeekdaysOnlyEnabled(options.weekdaysOnly)
+  const start = parseClockMinutes(options.workStart || '08:00', 480)
+  const end = parseClockMinutes(options.workEnd || '15:00', 900)
+  const current = (now.getHours() * 60) + now.getMinutes()
+  const crossesMidnight = end <= start
+
+  if (weekdaysOnly && !isWorkWeekday(now)) {
+    if (crossesMidnight && isWorkWeekday(previousWorkDate(now)) && current < end) {
+      return 'SALIDA EN ' + minutesText(end - current)
+    }
+    return 'LIBRE'
+  }
+
+  if (crossesMidnight) {
+    if (current >= start) return 'SALIDA EN ' + minutesText((end + 1440) - current)
+    if (current < end) return 'SALIDA EN ' + minutesText(end - current)
+    return 'ENTRA EN ' + minutesText(start - current)
+  }
+
+  if (current < start) return 'ENTRA EN ' + minutesText(start - current)
+  if (current >= end) return 'JORNADA OK'
+  return 'SALIDA EN ' + minutesText(end - current)
+}
+`;
+
+    function findFunctionEnd(source, openBraceIndex) {
+        let depth = 0;
+        let quote = null;
+        let escaped = false;
+        let lineComment = false;
+        let blockComment = false;
+        for (let i = openBraceIndex; i < source.length; i += 1) {
+            const ch = source[i];
+            const next = source[i + 1];
+            if (lineComment) {
+                if (ch === '\n' || ch === '\r') lineComment = false;
+                continue;
+            }
+            if (blockComment) {
+                if (ch === '*' && next === '/') {
+                    blockComment = false;
+                    i += 1;
+                }
+                continue;
+            }
+            if (quote) {
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if (ch === '\\') {
+                    escaped = true;
+                    continue;
+                }
+                if (ch === quote) quote = null;
+                continue;
+            }
+            if (ch === '/' && next === '/') {
+                lineComment = true;
+                i += 1;
+                continue;
+            }
+            if (ch === '/' && next === '*') {
+                blockComment = true;
+                i += 1;
+                continue;
+            }
+            if (ch === '\'' || ch === '"' || ch === '`') {
+                quote = ch;
+                continue;
+            }
+            if (ch === '{') depth += 1;
+            if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    function replaceOrInsertRuntime(code) {
+        let out = String(code || '');
+        ['parseClockMinutes', 'minutesText', 'readWorkTimeUtc', 'getWorkNowDate', 'isWorkWeekday', 'previousWorkDate', 'isWeekdaysOnlyEnabled', 'getWorkRemainingText'].forEach(function(name) {
+            const start = out.indexOf('function ' + name + '(');
+            if (start < 0) return;
+            const openBrace = out.indexOf('{', start);
+            const end = openBrace >= 0 ? findFunctionEnd(out, openBrace) : -1;
+            if (end >= 0) out = out.slice(0, start) + out.slice(end + 1).replace(/^\n{1,2}/, '');
+        });
+        const marker = 'function getMetricText(type, fallback, options)';
+        const pos = out.indexOf(marker);
+        return pos >= 0 ? out.slice(0, pos) + WORK_REMAINING_RUNTIME + '\n' + out.slice(pos) : WORK_REMAINING_RUNTIME + '\n' + out;
+    }
+
+    function ensureTimeSensorForWork(code) {
+        let out = String(code || '');
+        if (!out.includes("'work-remaining'") && !out.includes('"work-remaining"')) return out;
+
+        if (out.includes('const sensorAliases = {') && !/time:\s*\['TIME'\]/.test(out)) {
+            out = out.replace('const sensorAliases = {', "const sensorAliases = {\n  time: ['TIME'],");
+        }
+
+        out = out.replace(/const sensorTypes = \[([^\]]*)\]/, function(match, list) {
+            if (list.includes("'time'") || list.includes('"time"')) return match;
+            const trimmed = list.trim();
+            return "const sensorTypes = ['time'" + (trimmed ? ', ' + trimmed : '') + ']';
+        });
+
+        return out;
+    }
+
+    function patchWorkRemainingCode(code) {
+        let out = String(code || '');
+        if (!out.includes("'work-remaining'") && !out.includes('"work-remaining"')) return out;
+        out = replaceOrInsertRuntime(out);
+        out = ensureTimeSensorForWork(out);
+        if (typeof window.normalizeGeneratedWatchfaceCode === 'function') {
+            out = window.normalizeGeneratedWatchfaceCode(out);
+        }
+        return out;
+    }
+
+    function patchCodeBox() {
+        try {
+            const box = document.getElementById('zepp-code-box');
+            if (!box) return;
+            const current = box.innerText || box.textContent || '';
+            const patched = patchWorkRemainingCode(current);
+            if (patched !== current) {
+                box.innerText = patched;
+                box.textContent = patched;
+            }
+        } catch (err) {}
+    }
+
+    function patchFunction(name) {
+        try {
+            const original = window[name] || (typeof globalThis !== 'undefined' ? globalThis[name] : null);
+            if (typeof original !== 'function' || original.__workRemainingSchedulePatched) return;
+            const patched = function() {
+                const result = original.apply(this, arguments);
+                patchCodeBox();
+                return typeof result === 'string' ? patchWorkRemainingCode(result) : result;
+            };
+            patched.__workRemainingSchedulePatched = true;
+            window[name] = patched;
+            try { globalThis[name] = patched; } catch (err) {}
+            try { eval(name + ' = patched'); } catch (err) {}
+        } catch (err) {}
+    }
+
+    function initWorkRemainingScheduleFix() {
+        ['generateZeppCode', 'exportJSON', 'copyCode'].forEach(patchFunction);
+        patchCodeBox();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWorkRemainingScheduleFix);
+    } else {
+        initWorkRemainingScheduleFix();
+    }
+    setTimeout(initWorkRemainingScheduleFix, 400);
+    setTimeout(initWorkRemainingScheduleFix, 1800);
+    setTimeout(initWorkRemainingScheduleFix, 4200);
+})();
+
+/*
+ * Producción Active 3 Premium:
+ * - refresca inmediatamente al volver a mostrarse la esfera
+ * - crea solo los sensores usados por el diseño
+ * - desactiva helpers de debug/probes en el watchface exportado
+ * - normaliza temperatura 3454 -> 34,5
+ * - añade zonas táctiles opcionales para abrir apps
+ */
+(function installProductionRuntimePatch() {
+    if (typeof window === 'undefined') return;
+    if (window.__amazfitProductionRuntimePatchInstalled) return;
+    window.__amazfitProductionRuntimePatchInstalled = true;
+
+    const TAP_APP_CANDIDATES = {
+        heart: ['heart_rate', 'heart', 'HEART'],
+        activity: ['activity', 'sport_data', 'steps', 'STEP'],
+        workout: ['workout', 'sport', 'exercise'],
+        weather: ['weather', 'WEATHER'],
+        sleep: ['sleep', 'SLEEP'],
+        spo2: ['spo2', 'blood_oxygen', 'SPO2'],
+        stress: ['stress', 'STRESS'],
+        pai: ['pai', 'PAI'],
+        alarm: ['alarm', 'ALARM'],
+        music: ['music', 'MUSIC'],
+        settings: ['settings', 'SETTING']
+    };
+
+    const SENSOR_DEPENDENCIES = {
+        battery: ['battery'],
+        steps: ['steps'],
+        'steps-target': ['steps'],
+        heart: ['heart'],
+        'heart-last': ['heart'],
+        'heart-current': ['heart'],
+        calories: ['calories'],
+        'calories-target': ['calories'],
+        distance: ['distance'],
+        sleep: ['sleep'],
+        'sleep-total': ['sleep'],
+        'sleep-score': ['sleep'],
+        'sleep-deep': ['sleep'],
+        'sleep-light': ['sleep'],
+        'sleep-rem': ['sleep'],
+        'sleep-awake': ['sleep'],
+        'sleep-start': ['sleep'],
+        'sleep-end': ['sleep'],
+        'sleep-stages': ['sleep'],
+        stress: ['stress'],
+        'stress-time': ['stress'],
+        spo2: ['spo2'],
+        'spo2-time': ['spo2'],
+        'spo2-retcode': ['spo2'],
+        pai: ['pai'],
+        'pai-total': ['pai'],
+        'pai-daily': ['pai'],
+        'pai-pre0': ['pai'],
+        'pai-pre1': ['pai'],
+        'pai-pre2': ['pai'],
+        'pai-pre3': ['pai'],
+        'pai-pre4': ['pai'],
+        'pai-pre5': ['pai'],
+        'pai-pre6': ['pai'],
+        weather: ['weather'],
+        temperature: ['weather'],
+        'temp-range': ['weather'],
+        'weather-city': ['weather'],
+        'weather-index': ['weather'],
+        'weather-high': ['weather'],
+        'weather-low': ['weather'],
+        sunrise: ['weather'],
+        sunset: ['weather'],
+        humidity: ['weather'],
+        uv: ['weather'],
+        stand: ['stand'],
+        'stand-target': ['stand'],
+        'fat-burning': ['fat-burning'],
+        'fat-burning-target': ['fat-burning'],
+        'body-temp': ['body-temp'],
+        'body-temp-interval': ['body-temp'],
+        wear: ['wear'],
+        'wear-code': ['wear'],
+        'vibrate-scene': ['vibrate'],
+        'world-clock-count': ['world_clock'],
+        'world-clock-city': ['world_clock'],
+        'world-clock-time': ['world_clock'],
+        'music-title': ['music'],
+        'music-artist': ['music'],
+        'music-status': ['music'],
+        'work-remaining': ['time']
+    };
+
+    function replaceFunctionBlock(source, functionName, replacement) {
+        const start = source.indexOf('function ' + functionName + '(');
+        if (start < 0) return source;
+        const bodyStart = source.indexOf('{', start);
+        if (bodyStart < 0) return source;
+        let depth = 0;
+        let quote = null;
+        let escaped = false;
+        let lineComment = false;
+        let blockComment = false;
+        for (let i = bodyStart; i < source.length; i += 1) {
+            const ch = source[i];
+            const next = source[i + 1];
+            if (lineComment) {
+                if (ch === '\n' || ch === '\r') lineComment = false;
+                continue;
+            }
+            if (blockComment) {
+                if (ch === '*' && next === '/') {
+                    blockComment = false;
+                    i += 1;
+                }
+                continue;
+            }
+            if (quote) {
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if (ch === '\\') {
+                    escaped = true;
+                    continue;
+                }
+                if (ch === quote) quote = null;
+                continue;
+            }
+            if (ch === '/' && next === '/') {
+                lineComment = true;
+                i += 1;
+                continue;
+            }
+            if (ch === '/' && next === '*') {
+                blockComment = true;
+                i += 1;
+                continue;
+            }
+            if (ch === '\'' || ch === '"' || ch === '`') {
+                quote = ch;
+                continue;
+            }
+            if (ch === '{') depth += 1;
+            if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) return source.slice(0, start) + replacement + source.slice(i + 1);
+            }
+        }
+        return source;
+    }
+
+    function getElementMetricTypes(element) {
+        const types = [];
+        if (!element) return types;
+        try {
+            const dynamicType = typeof getDynamicMetricType === 'function' ? getDynamicMetricType(element) : null;
+            if (dynamicType) types.push(dynamicType);
+        } catch (_) {}
+        if (isProgressWidget(element.type)) types.push(element.progressType || 'battery');
+        return types;
+    }
+
+    function getUsedSensorTypes() {
+        const used = new Set();
+        (elements || []).forEach(function(element) {
+            getElementMetricTypes(element).forEach(function(type) {
+                (SENSOR_DEPENDENCIES[type] || []).forEach(function(sensorType) {
+                    used.add(sensorType);
+                });
+            });
+        });
+        return Array.from(used);
+    }
+
+    function hasSecondLevelWidget() {
+        return (elements || []).some(function(element) {
+            if (!element) return false;
+            if (element.type === 'second') return true;
+            return element.type === 'time' && ['hh-mm-ss-24', 'hh-mm-ss-12', 'second-only'].includes(element.timeFormat);
+        });
+    }
+
+    function hasMinuteLevelWidget() {
+        return (elements || []).some(function(element) {
+            if (!element) return false;
+            if (['time', 'hour', 'minute', 'date', 'day', 'month', 'year', 'weekday', 'day-of-year', 'week', 'work-remaining', 'countdown', 'day-progress'].includes(element.type)) return true;
+            return false;
+        });
+    }
+
+    function getTapTarget(element) {
+        if (!element || element.tapAction !== 'open-app') return '';
+        if (element.tapApp === 'custom') return String(element.tapCustomTarget || '').trim();
+        return element.tapApp || '';
+    }
+
+    function buildTapOverlayLines() {
+        const lines = [];
+        (elements || []).forEach(function(element) {
+            const target = getTapTarget(element);
+            if (!target) return;
+            const safeTarget = escapeGeneratedText(target);
+            lines.push(
+                `    bindTapArea(${Math.round(element.x || 0)}, ${Math.round(element.y || 0)}, ${Math.max(1, Math.round(element.width || 1))}, ${Math.max(1, Math.round(element.height || 1))}, '${safeTarget}')\n`
+            );
+        });
+        return lines.join('');
+    }
+
+    function patchDebugForProduction(code) {
+        let out = code
+            .replace(/const SENSOR_DEBUG = true/g, 'const SENSOR_DEBUG = false')
+            .replace(/debugLog\('debug sensores activo'\)\n/g, '')
+            .replace(/^\s*probeBluetoothApis\(\)\s*$/gm, '    // probeBluetoothApis() desactivado')
+            .replace(/^\s*probeSensorExtraMethods\(\)\s*$/gm, '    // probeSensorExtraMethods() desactivado');
+
+        out = replaceFunctionBlock(out, 'debugLog', "function debugLog(label, value) {\n  return false\n}\n");
+        out = replaceFunctionBlock(out, 'debugMetric', "function debugMetric(type, value, fallback) {\n  return value\n}\n");
+        out = replaceFunctionBlock(out, 'debugSensorStatus', "function debugSensorStatus(type, sensor) {\n  return false\n}\n");
+        out = replaceFunctionBlock(out, 'probeSensorExtraMethods', "function probeSensorExtraMethods() {\n  return false\n}\n");
+        return out;
+    }
+
+    function patchSensorCreation(code) {
+        const sensorTypes = getUsedSensorTypes();
+        const list = '[' + sensorTypes.map(function(type) { return "'" + escapeGeneratedText(type) + "'"; }).join(', ') + ']';
+        return code.replace('    const sensorTypes = Object.keys(sensorAliases)\n', '    const sensorTypes = ' + list + '\n');
+    }
+
+    function patchRefreshLifecycle(code) {
+        const interval = hasSecondLevelWidget() ? 1000 : 60000;
+        const syncMinute = !hasSecondLevelWidget() && hasMinuteLevelWidget();
+        let out = code.replace(
+            /function startRefreshTimer\(\) \{[\s\S]*?\n\}\n\nfunction stopRefreshTimer/,
+            "function startRefreshTimer() {\n" +
+            "  if (!dynamicTexts.length && !dynamicBars.length && !dynamicArcs.length) return null\n" +
+            "  if (typeof timer !== 'undefined' && typeof timer.createTimer === 'function') {\n" +
+            "    const interval = " + interval + "\n" +
+            "    let delay = 1\n" +
+            (syncMinute
+                ? "    const now = new Date()\n    delay = Math.max(1, ((60 - now.getSeconds()) * 1000) - (typeof now.getMilliseconds === 'function' ? now.getMilliseconds() : 0))\n"
+                : "") +
+            "    return timer.createTimer(delay, interval, updateDynamicWidgets, {})\n" +
+            "  }\n" +
+            "  return null\n" +
+            "}\n\nfunction stopRefreshTimer"
+        );
+
+        if (!out.includes('function restartDynamicRefresh()')) {
+            out = out.replace(
+                'WatchFace({',
+                "function restartDynamicRefresh() {\n" +
+                "  stopRefreshTimer(refreshTimer)\n" +
+                "  updateDynamicWidgets()\n" +
+                "  refreshTimer = startRefreshTimer()\n" +
+                "  return refreshTimer\n" +
+                "}\n\nWatchFace({"
+            );
+        }
+
+        if (!out.includes('onResume() {')) {
+            out = out.replace(
+                '  onDestroy() {',
+                "  onResume() {\n" +
+                "    restartDynamicRefresh()\n" +
+                "  },\n\n" +
+                "  onShow() {\n" +
+                "    restartDynamicRefresh()\n" +
+                "  },\n\n" +
+                "  onDestroy() {"
+            );
+        }
+
+        return out;
+    }
+
+    function patchHeartAndTemperature(code) {
+        let out = code;
+
+        const tempHelpers = "function normalizeTemperatureValue(value, fallback) {\n" +
+            "  const parsed = Number(value)\n" +
+            "  if (!(parsed === parsed)) return fallback || 0\n" +
+            "  const normalized = Math.abs(parsed) >= 1000 ? parsed / 100 : parsed\n" +
+            "  return Math.round(normalized * 10) / 10\n" +
+            "}\n\n" +
+            "function formatTemperatureMetric(value, fallback) {\n" +
+            "  const normalized = normalizeTemperatureValue(value, fallback)\n" +
+            "  return String(normalized).replace('.', ',')\n" +
+            "}\n\n";
+
+        if (!out.includes('function normalizeTemperatureValue(')) {
+            out = out.replace('function getRawMetric(type, fallback) {', tempHelpers + 'function getRawMetric(type, fallback) {');
+        }
+
+        out = out.replace(
+            /^\s*if \(type === 'heart'\) return .+$/m,
+            "  if (type === 'heart') {\n    const last = readNumber(source, ['getLast'], ['last', 'heartRate', 'bpm', 'value'], 0)\n    if (last > 0) return Math.round(last)\n    return Math.max(0, Math.round(readNumber(source, ['getCurrent'], ['current', 'heartRate', 'bpm', 'value'], 0)))\n  }"
+        );
+
+        out = out.replace(
+            /^\s*if \(type === 'temperature'\) return .+$/m,
+            "  if (type === 'temperature') return normalizeTemperatureValue(readNumber(metricSensors.weather, ['getCurrent'], ['temperature', 'temp', 'currentTemp'], typeof getTempHigh === 'function' ? getTempHigh(fallback || 0) : (fallback || 0)), fallback || 0)"
+        );
+
+        out = out.replace(
+            "  if (type === 'temperature') return String(getRawMetric('temperature', 0))",
+            "  if (type === 'temperature') return formatTemperatureMetric(getRawMetric('temperature', 0), fallback || 0)"
+        );
+        out = out.replace(
+            "  if (type === 'body-temp') return String(getFullHmSensorRaw(type, fallback || '0'))",
+            "  if (type === 'body-temp') return formatTemperatureMetric(getFullHmSensorRaw(type, fallback || '0'), fallback || 0)"
+        );
+        out = out.replace(
+            "  if (type === 'body-temp') return clamp(Math.round(((getRawMetric('body-temp', 36) - 30) / 12) * 100), 0, 100)",
+            "  if (type === 'body-temp') return clamp(Math.round(((normalizeTemperatureValue(getRawMetric('body-temp', 36), 36) - 30) / 12) * 100), 0, 100)"
+        );
+
+        return out;
+    }
+
+    function patchTapActions(code) {
+        const overlays = buildTapOverlayLines();
+        if (!overlays) return code;
+
+        const helper = "const tapAppCandidates = " + JSON.stringify(TAP_APP_CANDIDATES) + "\n" +
+            "function getTapCandidates(target) {\n" +
+            "  const mapped = tapAppCandidates[target]\n" +
+            "  if (mapped && mapped.length) return mapped\n" +
+            "  return [target]\n" +
+            "}\n\n" +
+            "function tryOpenTapCandidate(candidate) {\n" +
+            "  if (!candidate) return false\n" +
+            "  if (typeof hmApp !== 'undefined') {\n" +
+            "    if (typeof hmApp.startApp === 'function') {\n" +
+            "      const variants = [{ appid: candidate }, { appId: candidate }, { url: candidate }, candidate]\n" +
+            "      for (let i = 0; i < variants.length; i += 1) {\n" +
+            "        try { hmApp.startApp(variants[i]); return true } catch (err) {}\n" +
+            "      }\n" +
+            "    }\n" +
+            "    if (typeof hmApp.gotoPage === 'function') {\n" +
+            "      try { hmApp.gotoPage({ url: candidate }); return true } catch (err) {}\n" +
+            "      try { hmApp.gotoPage(candidate); return true } catch (err) {}\n" +
+            "    }\n" +
+            "  }\n" +
+            "  return false\n" +
+            "}\n\n" +
+            "function openTapTarget(target) {\n" +
+            "  const candidates = getTapCandidates(target)\n" +
+            "  for (let i = 0; i < candidates.length; i += 1) {\n" +
+            "    if (tryOpenTapCandidate(candidates[i])) return true\n" +
+            "  }\n" +
+            "  return false\n" +
+            "}\n\n" +
+            "function attachTapHandler(node, handler) {\n" +
+            "  if (!node) return false\n" +
+            "  try {\n" +
+            "    if (typeof node.addEventListener === 'function' && typeof hmUI !== 'undefined' && hmUI.event) {\n" +
+            "      const eventName = hmUI.event.CLICK_UP || hmUI.event.CLICK || hmUI.event.CLICK_DOWN\n" +
+            "      if (eventName !== undefined) { node.addEventListener(eventName, handler); return true }\n" +
+            "    }\n" +
+            "  } catch (err) {}\n" +
+            "  try {\n" +
+            "    if (typeof node.setProperty === 'function' && typeof prop !== 'undefined' && prop.CLICK_FUNC !== undefined) {\n" +
+            "      node.setProperty(prop.CLICK_FUNC, handler)\n" +
+            "      return true\n" +
+            "    }\n" +
+            "  } catch (err) {}\n" +
+            "  return false\n" +
+            "}\n\n" +
+            "function bindTapArea(x, y, w, h, target) {\n" +
+            "  if (!target || typeof createWidget !== 'function' || typeof widget === 'undefined') return\n" +
+            "  const handler = function() { openTapTarget(target) }\n" +
+            "  if (widget.BUTTON) {\n" +
+            "    try {\n" +
+            "      createWidget(widget.BUTTON, { x: x, y: y, w: w, h: h, text: '', color: 0x000000, normal_color: 0x000000, press_color: 0x000000, alpha: 0, click_func: handler })\n" +
+            "      return\n" +
+            "    } catch (err) {}\n" +
+            "  }\n" +
+            "  try {\n" +
+            "    const node = createWidget(widget.FILL_RECT, { x: x, y: y, w: w, h: h, color: 0x000000, alpha: 0 })\n" +
+            "    attachTapHandler(node, handler)\n" +
+            "  } catch (err) {}\n" +
+            "}\n\n";
+
+        let out = code;
+        if (!out.includes('function bindTapArea(')) {
+            out = out.replace('WatchFace({', helper + 'WatchFace({');
+        }
+        return out.replace('    updateDynamicWidgets()\n', overlays + '    updateDynamicWidgets()\n');
+    }
+
+    function patchGeneratedProductionCode(code) {
+        let out = String(code || '');
+        out = patchDebugForProduction(out);
+        out = patchSensorCreation(out);
+        out = patchRefreshLifecycle(out);
+        out = patchHeartAndTemperature(out);
+        out = patchTapActions(out);
+        if (typeof window.normalizeGeneratedWatchfaceCode === 'function') {
+            out = window.normalizeGeneratedWatchfaceCode(out);
+        }
+        return out;
+    }
+
+    function patchCodeBox() {
+        try {
+            const box = document.getElementById('zepp-code-box');
+            if (!box) return;
+            const current = box.innerText || box.textContent || '';
+            const patched = patchGeneratedProductionCode(current);
+            if (patched !== current) {
+                box.innerText = patched;
+                box.textContent = patched;
+            }
+        } catch (_) {}
+    }
+
+    function patchGenerator(name) {
+        try {
+            const original = window[name] || (typeof globalThis !== 'undefined' ? globalThis[name] : null);
+            if (typeof original !== 'function' || original.__amazfitProductionPatched) return;
+            const patched = function() {
+                const result = original.apply(this, arguments);
+                patchCodeBox();
+                return typeof result === 'string' ? patchGeneratedProductionCode(result) : result;
+            };
+            patched.__amazfitProductionPatched = true;
+            window[name] = patched;
+            try { globalThis[name] = patched; } catch (_) {}
+            try { eval(name + ' = patched'); } catch (_) {}
+        } catch (_) {}
+    }
+
+    function initProductionRuntimePatch() {
+        ['generateZeppCode', 'exportJSON', 'copyCode'].forEach(patchGenerator);
+        patchCodeBox();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initProductionRuntimePatch);
+    } else {
+        initProductionRuntimePatch();
+    }
+    setTimeout(initProductionRuntimePatch, 300);
+    setTimeout(initProductionRuntimePatch, 1200);
+    setTimeout(initProductionRuntimePatch, 3500);
 })();
 
 
@@ -6753,4 +7520,316 @@ function getMetricText`);
         patchCopyStyleWithoutTextColor();
     }
     setTimeout(patchCopyStyleWithoutTextColor, 250);
+})();
+
+/*
+ * Ajustes finales solicitados:
+ * 1) El tamaño de texto exportado a hmUI.TEXT no se reduce: fontSize del editor = text_size de Zepp.
+ * 2) La caja h de hmUI.TEXT usa la misma altura visible del preview, no una altura auto ampliada.
+ * 3) Nuevo widget "Teléfono" para saber si el reloj está conectado al móvil.
+ */
+(function installPreviewSizeAndPhoneConnectionFix() {
+    if (typeof window === 'undefined') return;
+    if (window.__previewSizeAndPhoneConnectionFixInstalled) return;
+    window.__previewSizeAndPhoneConnectionFixInstalled = true;
+
+    const PHONE_TYPE = 'phone-connected';
+    const CONNECTION_TYPES = ['bluetooth', PHONE_TYPE];
+
+    function isConnectionWidgetType(type) {
+        return CONNECTION_TYPES.indexOf(type) !== -1;
+    }
+
+    function safeColor(value, fallback) {
+        return String(value || fallback || '#ffffff').replace('#', '');
+    }
+
+    function phoneOkText(element) {
+        return element && element.statusOkText ? element.statusOkText : 'TEL OK';
+    }
+
+    function phoneKoText(element) {
+        return element && element.statusKoText ? element.statusKoText : 'TEL KO';
+    }
+
+    function phoneOkColor(element) {
+        return element && element.statusOkColor ? element.statusOkColor : '#34d399';
+    }
+
+    function phoneKoColor(element) {
+        return element && element.statusKoColor ? element.statusKoColor : '#f87171';
+    }
+
+    try {
+        // Igualar la escala interna: el valor visual editado es el valor que llega a Zepp.
+        Object.keys(zeppTextSizeScale).forEach(function(key) {
+            zeppTextSizeScale[key] = 1;
+        });
+    } catch (err) {}
+
+    try {
+        getZeppTextSize = function(fontClass, size) {
+            return Math.max(1, Math.round(Number(size) || 14));
+        };
+        window.getZeppTextSize = getZeppTextSize;
+    } catch (err) {}
+
+    try {
+        getZeppTextBoxHeight = function(fontClass, size, preferredHeight) {
+            const preferred = Number(preferredHeight);
+            if (preferred === preferred && preferred > 0) return Math.max(1, Math.round(preferred));
+            return Math.max(1, Math.round(Number(size) || 14));
+        };
+        window.getZeppTextBoxHeight = getZeppTextBoxHeight;
+    } catch (err) {}
+
+    try {
+        if (Array.isArray(DYNAMIC_METRIC_TYPES) && DYNAMIC_METRIC_TYPES.indexOf(PHONE_TYPE) === -1) {
+            DYNAMIC_METRIC_TYPES.push(PHONE_TYPE);
+        }
+        metricDefaults[PHONE_TYPE] = {
+            text: 'TEL OK',
+            color: '#34d399',
+            fontSize: 18,
+            fontFamily: 'font-rajdhani'
+        };
+    } catch (err) {}
+
+    try {
+        const previousGetMetricLabel = getMetricLabel;
+        getMetricLabel = function(type) {
+            if (type === PHONE_TYPE) return 'TELÉFONO';
+            return previousGetMetricLabel.apply(this, arguments);
+        };
+        window.getMetricLabel = getMetricLabel;
+    } catch (err) {}
+
+    try {
+        const previousEnsureStatusDefaults = ensureStatusDefaults;
+        ensureStatusDefaults = function(element) {
+            if (!element || !isConnectionWidgetType(element.type)) {
+                return previousEnsureStatusDefaults.apply(this, arguments);
+            }
+
+            if (element.type === PHONE_TYPE) {
+                if (!element.statusOkText) element.statusOkText = 'TEL OK';
+                if (!element.statusKoText) element.statusKoText = 'TEL KO';
+                if (!element.statusOkColor) element.statusOkColor = '#34d399';
+                if (!element.statusKoColor) element.statusKoColor = '#f87171';
+            } else {
+                if (!element.statusOkText) element.statusOkText = 'BT OK';
+                if (!element.statusKoText) element.statusKoText = 'BT KO';
+                if (!element.statusOkColor) element.statusOkColor = '#60a5fa';
+                if (!element.statusKoColor) element.statusKoColor = '#f87171';
+            }
+
+            if (!element.statusPreview) element.statusPreview = 'ok';
+            element.text = element.statusPreview === 'ko' ? element.statusKoText : element.statusOkText;
+            element.color = element.statusPreview === 'ko' ? element.statusKoColor : element.statusOkColor;
+        };
+        window.ensureStatusDefaults = ensureStatusDefaults;
+    } catch (err) {}
+
+    try {
+        const previousGetElementDisplayText = getElementDisplayText;
+        getElementDisplayText = function(element) {
+            if (element && isConnectionWidgetType(element.type)) {
+                ensureStatusDefaults(element);
+                const value = element.statusPreview === 'ko' ? element.statusKoText : element.statusOkText;
+                return applyMetricAffixes(element, value);
+            }
+            return previousGetElementDisplayText.apply(this, arguments);
+        };
+        window.getElementDisplayText = getElementDisplayText;
+    } catch (err) {}
+
+    try {
+        const previousGetElementDisplayColor = getElementDisplayColor;
+        getElementDisplayColor = function(element) {
+            if (element && isConnectionWidgetType(element.type)) {
+                ensureStatusDefaults(element);
+                return element.statusPreview === 'ko' ? element.statusKoColor : element.statusOkColor;
+            }
+            return previousGetElementDisplayColor.apply(this, arguments);
+        };
+        window.getElementDisplayColor = getElementDisplayColor;
+    } catch (err) {}
+
+    try {
+        const previousAddElement = addElement;
+        addElement = function(type) {
+            if (type !== PHONE_TYPE) return previousAddElement.apply(this, arguments);
+            const id = 'el_' + Date.now();
+            const element = {
+                id: id,
+                type: PHONE_TYPE,
+                x: 40,
+                y: 100 + (elements.length * 30) % 220,
+                width: 190,
+                height: 42,
+                color: '#34d399',
+                fontSize: 18,
+                fontFamily: 'font-rajdhani',
+                opacity: 1,
+                textAlign: 'center',
+                text: 'TEL OK',
+                statusOkText: 'TEL OK',
+                statusKoText: 'TEL KO',
+                statusOkColor: '#34d399',
+                statusKoColor: '#f87171',
+                statusPreview: 'ok'
+            };
+            normalizeElement(element);
+            elements.push(element);
+            renderCanvas();
+            selectElement(id);
+            showNotification('Widget de TELÉFONO añadido', 'success');
+            return element;
+        };
+        window.addElement = addElement;
+    } catch (err) {}
+
+    try {
+        const previousSelectElement = selectElement;
+        selectElement = function(id) {
+            const result = previousSelectElement.apply(this, arguments);
+            try {
+                const element = elements.find(function(item) { return item.id === id; });
+                if (!element || !isConnectionWidgetType(element.type)) return result;
+                ensureStatusDefaults(element);
+                const statusContainer = document.getElementById('prop-status-container');
+                if (statusContainer) statusContainer.classList.remove('hidden');
+                const okText = document.getElementById('prop-status-ok-text');
+                const koText = document.getElementById('prop-status-ko-text');
+                const okColor = document.getElementById('prop-status-ok-color');
+                const koColor = document.getElementById('prop-status-ko-color');
+                const preview = document.getElementById('prop-status-preview');
+                if (okText) okText.value = element.statusOkText;
+                if (koText) koText.value = element.statusKoText;
+                if (okColor) okColor.value = element.statusOkColor;
+                if (koColor) koColor.value = element.statusKoColor;
+                if (preview) preview.value = element.statusPreview || 'ok';
+            } catch (err) {}
+            return result;
+        };
+        window.selectElement = selectElement;
+    } catch (err) {}
+
+    try {
+        const previousGetGeneratedTextExpression = getGeneratedTextExpression;
+        getGeneratedTextExpression = function(el) {
+            if (el && el.type === PHONE_TYPE) {
+                ensureStatusDefaults(el);
+                return wrapGeneratedMetricText(el, "getMetricText('" + PHONE_TYPE + "', '" + escapeGeneratedText(getElementDisplayText(el)) + "', { okText: '" + escapeGeneratedText(phoneOkText(el)) + "', koText: '" + escapeGeneratedText(phoneKoText(el)) + "' })");
+            }
+            return previousGetGeneratedTextExpression.apply(this, arguments);
+        };
+        window.getGeneratedTextExpression = getGeneratedTextExpression;
+    } catch (err) {}
+
+    function insertBeforeFunction(code, functionName, snippet) {
+        if (code.indexOf(snippet.split('\n')[0]) !== -1) return code;
+        const marker = 'function ' + functionName + '(';
+        const pos = code.indexOf(marker);
+        if (pos === -1) return snippet + '\n' + code;
+        return code.slice(0, pos) + snippet + '\n' + code.slice(pos);
+    }
+
+    function patchPhoneDynamicPush(code) {
+        let out = code;
+        try {
+            elements.forEach(function(el, idx) {
+                if (!el || el.type !== PHONE_TYPE) return;
+                ensureStatusDefaults(el);
+                const fallback = escapeGeneratedText(el.text || getElementDisplayText(el));
+                const needle = "dynamicTexts.push({ node: textWidget" + idx + ", type: '" + PHONE_TYPE + "', fallback: '" + fallback + "', prefix:";
+                if (out.indexOf(needle) === -1) return;
+                const replacement = "dynamicTexts.push({ node: textWidget" + idx + ", type: '" + PHONE_TYPE + "', fallback: '" + fallback + "', options: { okText: '" + escapeGeneratedText(phoneOkText(el)) + "', koText: '" + escapeGeneratedText(phoneKoText(el)) + "' }, okColor: 0x" + safeColor(phoneOkColor(el), '#34d399') + ", koColor: 0x" + safeColor(phoneKoColor(el), '#f87171') + ", prefix:";
+                out = out.replace(needle, replacement);
+            });
+        } catch (err) {}
+        return out;
+    }
+
+    function patchGeneratedPhoneConnectionCode(code) {
+        let out = String(code || '');
+        if (out.indexOf(PHONE_TYPE) === -1) return out;
+
+        const phoneHelper = "function readPhoneConnected(fallbackConnected) {\n" +
+            "  try { if (typeof readBluetoothConnected === 'function') return readBluetoothConnected(fallbackConnected) } catch (err) {}\n" +
+            "  try { if (typeof hmBle !== 'undefined' && hmBle && typeof hmBle.connectStatus === 'function') return !!hmBle.connectStatus() } catch (err) {}\n" +
+            "  try { if (typeof ble !== 'undefined' && ble && typeof ble.connectStatus === 'function') return !!ble.connectStatus() } catch (err) {}\n" +
+            "  return !!fallbackConnected\n" +
+            "}\n\n";
+        out = insertBeforeFunction(out, 'getMetricText', phoneHelper);
+
+        if (out.indexOf("type === '" + PHONE_TYPE + "'") === -1) {
+            out = out.replace(
+                /function getMetricText\(type, fallback, options\) \{\n\s*options = options \|\| \{\}/,
+                function(match) {
+                    return match + "\n  if (type === '" + PHONE_TYPE + "') return readPhoneConnected(false) ? (options.okText || fallback || 'TEL OK') : (options.koText || 'TEL KO')";
+                }
+            );
+        }
+
+        if (out.indexOf("item.type === '" + PHONE_TYPE + "'") === -1) {
+            const bluetoothBlock = "    if (item.type === 'bluetooth') {\n      const connected = readBluetoothConnected(false)\n      item.node.setProperty(prop.COLOR, connected ? item.okColor : item.koColor)\n    }";
+            const phoneBlock = bluetoothBlock + "\n    if (item.type === '" + PHONE_TYPE + "') {\n      const connected = readPhoneConnected(false)\n      item.node.setProperty(prop.COLOR, connected ? (item.okColor || 0x34d399) : (item.koColor || 0xf87171))\n    }";
+            if (out.indexOf(bluetoothBlock) !== -1) {
+                out = out.replace(bluetoothBlock, phoneBlock);
+            } else {
+                const genericBlock = "    if (item.type === 'bluetooth') {\n      const connected = readNumber(metricSensors.bluetooth, ['getStatus'], ['connected', 'value'], 1)\n      item.node.setProperty(prop.COLOR, connected ? item.okColor : item.koColor)\n    }";
+                const genericPhoneBlock = genericBlock + "\n    if (item.type === '" + PHONE_TYPE + "') {\n      const connected = readPhoneConnected(false)\n      item.node.setProperty(prop.COLOR, connected ? (item.okColor || 0x34d399) : (item.koColor || 0xf87171))\n    }";
+                if (out.indexOf(genericBlock) !== -1) out = out.replace(genericBlock, genericPhoneBlock);
+            }
+        }
+
+        out = patchPhoneDynamicPush(out);
+        return out;
+    }
+
+    function normalizeAndPatchCodeBox() {
+        try {
+            const box = document.getElementById('zepp-code-box');
+            if (!box) return;
+            let code = box.innerText || box.textContent || '';
+            if (typeof window.normalizeGeneratedWatchfaceCode === 'function') code = window.normalizeGeneratedWatchfaceCode(code);
+            code = patchGeneratedPhoneConnectionCode(code);
+            if (box.innerText !== code) box.innerText = code;
+            if (box.textContent !== code) box.textContent = code;
+        } catch (err) {}
+    }
+
+    function patchGeneratorFunction(name) {
+        try {
+            const original = window[name] || (typeof globalThis !== 'undefined' ? globalThis[name] : null);
+            if (typeof original !== 'function' || original.__phoneConnectionPatched) return;
+            const patched = function() {
+                const result = original.apply(this, arguments);
+                normalizeAndPatchCodeBox();
+                return typeof result === 'string' ? patchGeneratedPhoneConnectionCode(result) : result;
+            };
+            patched.__phoneConnectionPatched = true;
+            window[name] = patched;
+            try { globalThis[name] = patched; } catch (err) {}
+            try { eval(name + ' = patched'); } catch (err) {}
+        } catch (err) {}
+    }
+
+    function init() {
+        patchGeneratorFunction('generateZeppCode');
+        patchGeneratorFunction('exportJSON');
+        patchGeneratorFunction('copyCode');
+        normalizeAndPatchCodeBox();
+        try { renderCanvas(); } catch (err) {}
+        try { if (typeof generateZeppCode === 'function') generateZeppCode(); } catch (err) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    setTimeout(init, 500);
+    setTimeout(init, 1500);
 })();
